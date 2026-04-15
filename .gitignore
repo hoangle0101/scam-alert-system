@@ -1,0 +1,10 @@
+__pycache__/
+venv/
+.env
+node_modules/
+dist/
+*.pyc
+# Không đẩy model nặng lên Git
+backend/models/*.onnx
+backend/models/*.pt
+backend/models/*.h5

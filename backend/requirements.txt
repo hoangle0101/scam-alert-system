@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+python-multipart
+python-dotenv
+onnxruntime
+numpy
+pillow
+scikit-learn
+pydantic
