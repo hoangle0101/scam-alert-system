@@ -1,6 +1,6 @@
 
 import { NavLink } from 'react-router-dom';
-import { Shield, LayoutDashboard, Radar, Users, MessageSquare, BookOpen, FileText, HelpCircle, FileJson } from 'lucide-react';
+import { Shield, LayoutDashboard, Radar, Users, MessageSquare, BookOpen, FileText, HelpCircle, FileJson, Settings as SettingsIcon } from 'lucide-react';
 import { Button } from './Button';
 
 export function Sidebar() {
@@ -11,6 +11,7 @@ export function Sidebar() {
     { icon: MessageSquare, label: 'Community Feed', path: '/community' },
     { icon: BookOpen, label: 'Knowledge Base', path: '/knowledge' },
     { icon: FileText, label: 'Audit Logs', path: '/audit' },
+    { icon: SettingsIcon, label: 'Settings', path: '/settings' },
   ];
 
   return (

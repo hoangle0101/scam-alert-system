@@ -5,6 +5,8 @@ import { Dashboard } from './pages/Dashboard';
 import { ThreatIntelligence } from './pages/ThreatIntelligence';
 import { CommunityFeed } from './pages/CommunityFeed';
 import { AuditLogs } from './pages/AuditLogs';
+import { KnowledgeBase } from './pages/KnowledgeBase';
+import { Settings } from './pages/Settings';
 
 function App() {
   return (
@@ -15,9 +17,10 @@ function App() {
           <Route path="threat-intel" element={<ThreatIntelligence />} />
           <Route path="community" element={<CommunityFeed />} />
           <Route path="audit" element={<AuditLogs />} />
+          <Route path="knowledge" element={<KnowledgeBase />} />
+          <Route path="settings" element={<Settings />} />
           {/* Fallbacks for other sidebar links */}
           <Route path="agents" element={<div className="p-6 text-slate-400">Agent Management (WIP)</div>} />
-          <Route path="knowledge" element={<div className="p-6 text-slate-400">Knowledge Base (WIP)</div>} />
         </Route>
       </Routes>
     </BrowserRouter>
