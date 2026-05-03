@@ -1,9 +1,12 @@
 
-import { Bell, Settings, User, Terminal } from 'lucide-react';
+import { Bell, Settings, User, Terminal, Sun, Moon } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
 
 export function Header() {
+  const { theme, toggleTheme } = useTheme();
+
   return (
-    <header className="h-16 border-b border-dark-600 bg-dark-900/50 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-10">
+    <header className="h-16 border-b border-dark-600 bg-dark-900/50 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-10 transition-colors">
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2 text-sm font-mono text-slate-400">
           <Terminal size={16} />
@@ -17,6 +20,9 @@ export function Header() {
           <span className="text-brand-500 font-mono font-medium tracking-wide">SYSTEM STATUS: OPTIMAL</span>
         </div>
         
+        <button onClick={toggleTheme} className="p-2 text-slate-400 hover:text-slate-200 transition-colors" title="Toggle Light/Dark Mode">
+          {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+        </button>
         <button className="p-2 text-slate-400 hover:text-slate-200 transition-colors">
           <Bell size={20} />
         </button>

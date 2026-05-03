@@ -3,7 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from '../components/Sidebar';
 import { Header } from '../components/Header';
 
-export function DashboardLayout() {
+export function AdminLayout() {
   return (
     <div className="flex min-h-screen bg-dark-900 text-slate-300 font-sans selection:bg-brand-500/30">
       <Sidebar />

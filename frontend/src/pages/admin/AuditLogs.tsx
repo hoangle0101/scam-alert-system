@@ -1,5 +1,5 @@
-import { Card } from '../components/Card';
-import { Button } from '../components/Button';
+import { Card } from '../../components/Card';
+import { Button } from '../../components/Button';
 import { Search, FileSpreadsheet, FileText, ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react';
 
 const LOGS = [

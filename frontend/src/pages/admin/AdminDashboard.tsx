@@ -1,6 +1,6 @@
-import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
-import { Button } from '../components/Button';
-import { GeographicMap } from '../components/GeographicMap';
+import { Card, CardHeader, CardTitle, CardContent } from '../../components/Card';
+import { Button } from '../../components/Button';
+import { GeographicMap } from '../../components/GeographicMap';
 import { BarChart, Bar, ResponsiveContainer, Tooltip } from 'recharts';
 import { MoreVertical, Zap } from 'lucide-react';
 
@@ -25,7 +25,7 @@ const LOGS = [
   "[14:08:11] INF Database compression active: 82% efficiency.",
 ];
 
-export function Dashboard() {
+export function AdminDashboard() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       

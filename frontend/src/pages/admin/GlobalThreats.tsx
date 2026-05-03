@@ -1,9 +1,9 @@
-import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import { Button } from '../components/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/Card';
+import { Button } from '../../components/Button';
 import { ShieldAlert, Activity, Lock, Link, Search, UserPlus, Fingerprint, Eye, TrendingUp } from 'lucide-react';
-import { GeographicMap } from '../components/GeographicMap';
+import { GeographicMap } from '../../components/GeographicMap';
 
-export function ThreatIntelligence() {
+export function GlobalThreats() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
       
