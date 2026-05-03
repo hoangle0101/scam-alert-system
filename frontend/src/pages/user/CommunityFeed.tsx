@@ -1,5 +1,5 @@
-import { Card, CardContent } from '../components/Card';
-import { Button } from '../components/Button';
+import { Card, CardContent } from '../../components/Card';
+import { Button } from '../../components/Button';
 import { AlertTriangle, MessageSquare, ChevronUp, ChevronDown, CheckCircle2, ShieldCheck, Share2, ArrowRight } from 'lucide-react';
 
 export function CommunityFeed() {

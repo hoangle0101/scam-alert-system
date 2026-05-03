@@ -1,5 +1,5 @@
-import { Card, CardContent } from '../components/Card';
-import { Button } from '../components/Button';
+import { Card, CardContent } from '../../components/Card';
+import { Button } from '../../components/Button';
 import { ArrowRight, BrainCircuit, ShieldCheck, Grid, Play, Lock, Eye } from 'lucide-react';
 
 export function KnowledgeBase() {

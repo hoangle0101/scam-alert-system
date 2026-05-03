@@ -1,17 +1,15 @@
 
 import { NavLink } from 'react-router-dom';
-import { Shield, LayoutDashboard, Radar, Users, MessageSquare, BookOpen, FileText, HelpCircle, FileJson, Settings as SettingsIcon } from 'lucide-react';
+import { Shield, LayoutDashboard, Radar, Users, FileText, HelpCircle, FileJson, Settings as SettingsIcon } from 'lucide-react';
 import { Button } from './Button';
 
 export function Sidebar() {
   const navItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-    { icon: Radar, label: 'Threat Intelligence', path: '/threat-intel' },
-    { icon: Users, label: 'Agent Management', path: '/agents' },
-    { icon: MessageSquare, label: 'Community Feed', path: '/community' },
-    { icon: BookOpen, label: 'Knowledge Base', path: '/knowledge' },
-    { icon: FileText, label: 'Audit Logs', path: '/audit' },
-    { icon: SettingsIcon, label: 'Settings', path: '/settings' },
+    { icon: LayoutDashboard, label: 'Command Center', path: '/admin/dashboard' },
+    { icon: Radar, label: 'Global Intel', path: '/admin/threat-intel' },
+    { icon: Users, label: 'Agent Ops', path: '/admin/agents' },
+    { icon: FileText, label: 'System Logs', path: '/admin/audit' },
+    { icon: SettingsIcon, label: 'Config Node', path: '/admin/settings' },
   ];
 
   return (

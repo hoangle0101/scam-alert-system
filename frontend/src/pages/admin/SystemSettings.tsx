@@ -1,8 +1,8 @@
-import { Card, CardContent } from '../components/Card';
-import { Button } from '../components/Button';
+import { Card, CardContent } from '../../components/Card';
+import { Button } from '../../components/Button';
 import { User, ShieldCheck, Plug, Users, CreditCard, Edit3, KeyRound, Lock, RefreshCcw, Eye, Settings as SettingsIcon } from 'lucide-react';
 
-export function Settings() {
+export function SystemSettings() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-16">
       
