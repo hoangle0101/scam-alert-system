@@ -1,27 +1,80 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-500: #3b82f6;
-  --color-brand-600: #2563eb;
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
   
-  --color-dark-900: #0f111a;
-  --color-dark-800: #161824;
-  --color-dark-700: #1e2132;
-  --color-dark-600: #2a2e45;
+  --color-dark-900: var(--dark-900);
+  --color-dark-800: var(--dark-800);
+  --color-dark-700: var(--dark-700);
+  --color-dark-600: var(--dark-600);
+  --color-dark-500: var(--dark-500);
 
-  --color-accent-blue: #2563eb;
-  --color-accent-red: #ef4444;
-  --color-accent-green: #10b981;
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-red: var(--accent-red);
+  --color-accent-green: var(--accent-green);
 
   --font-sans: 'Inter', 'Roboto', sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
+:root {
+  /* Dark Theme */
+  --brand-50: #eff6ff;
+  --brand-100: #dbeafe;
+  --brand-500: #3b82f6;
+  --brand-600: #2563eb;
+  
+  --dark-900: #0f111a;
+  --dark-800: #161824;
+  --dark-700: #1e2132;
+  --dark-600: #2a2e45;
+  --dark-500: #334155;
+
+  --accent-blue: #2563eb;
+  --accent-red: #ef4444;
+  --accent-green: #10b981;
+}
+
+:root.light {
+  /* Light Theme Overrides */
+  --dark-900: #f8fafc; /* Very light gray bg */
+  --dark-800: #ffffff; /* White cards */
+  --dark-700: #f1f5f9; /* Borders/Hover */
+  --dark-600: #e2e8f0; /* Stronger borders */
+  --dark-500: #cbd5e1; /* Even stronger */
+}
+
+/* Base resets to handle text colors depending on theme */
 @layer base {
   body {
-    @apply bg-dark-900 text-slate-300 font-sans antialiased;
+    @apply bg-dark-900 font-sans antialiased text-slate-300;
     margin: 0;
   }
+  
+  .light body {
+    @apply text-slate-800;
+  }
+
+  /* Override hardcoded text-white in light mode */
+  .light .text-white, .light .text-slate-100, .light .text-slate-200 {
+    color: #0f172a !important; /* text-slate-900 */
+  }
+  .light .text-slate-300, .light .text-slate-400 {
+    color: #475569 !important; /* text-slate-600 */
+  }
+  .light .text-slate-500 {
+    color: #64748b !important; /* text-slate-500 */
+  }
+  
+  /* Buttons need to keep white text */
+  .light button.bg-brand-600 .text-white, 
+  .light button.bg-accent-red .text-white,
+  .light .bg-accent-red .text-white,
+  .light .bg-brand-500 .text-white {
+    color: #ffffff !important;
+  }
 }
+
