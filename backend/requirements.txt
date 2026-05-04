@@ -1,9 +1,30 @@
+# ══════════════════════════════════════════════════════════
+# AI Scam Guardian — Backend Dependencies
+# ══════════════════════════════════════════════════════════
+
+# ── Web Framework ─────────────────────────────────────────
 fastapi
 uvicorn[standard]
 python-multipart
+
+# ── Configuration ─────────────────────────────────────────
 python-dotenv
+pydantic[email]
+pydantic-settings
+
+# ── Database ──────────────────────────────────────────────
+sqlalchemy
+aiosqlite
+
+# ── Security ──────────────────────────────────────────────
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt==4.0.1
+
+# ── AI / ML ───────────────────────────────────────────────
 onnxruntime
 numpy
+
+# ── Utilities ─────────────────────────────────────────────
+httpx
 pillow
-scikit-learn
-pydantic

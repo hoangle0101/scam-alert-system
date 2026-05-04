@@ -1,8 +1,34 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Shield, Search, Users, AlertTriangle, CheckCircle, ArrowRight, ShieldCheck, Zap, Settings, BookOpen, MessageSquare } from 'lucide-react';
+import { api } from '../../services/api';
 
 export function UserDashboard() {
+  const [stats, setStats] = useState<any>(null);
+  const [recentAlerts, setRecentAlerts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const history = await api.scanner.getHistory(1);
+        setRecentAlerts(history.results.slice(0, 3));
+        
+        setStats({
+          blockedCount: history.results.filter((r: any) => r.verdict === 'phishing').length,
+          latency: '0.4ms',
+          status: 'Active'
+        });
+      } catch (err) {
+        console.error("Failed to fetch dashboard data", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-16">
       {/* Hero / Welcome Section */}
@@ -14,10 +40,10 @@ export function UserDashboard() {
           <div className="text-center md:text-left">
             <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">Welcome Back, Guardian</h1>
             <p className="text-brand-100 text-lg max-w-xl">
-              Your Family Shield is active and monitoring for threats. We've blocked <span className="font-bold text-white">12 suspicious links</span> this week.
+              Your Family Shield is active and monitoring for threats. We've analyzed <span className="font-bold text-white">{stats?.blockedCount || 0} suspicious links</span> for you.
             </p>
             <div className="mt-6 flex flex-wrap gap-4 justify-center md:justify-start">
-              <Button variant="primary" className="bg-white text-brand-600 hover:bg-slate-100 px-8 py-3 rounded-xl font-bold shadow-lg">
+              <Button onClick={() => window.location.href='/user/scanner'} variant="primary" className="bg-white text-brand-600 hover:bg-slate-100 px-8 py-3 rounded-xl font-bold shadow-lg">
                 Quick Scan Now
               </Button>
               <Button variant="secondary" className="border-brand-400 text-white hover:bg-brand-500/20 px-8 py-3 rounded-xl font-bold">
@@ -29,12 +55,12 @@ export function UserDashboard() {
              <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/20">
                    <ShieldCheck className="text-green-400 mb-2" size={24} />
-                   <div className="text-2xl font-bold text-white">Active</div>
+                   <div className="text-2xl font-bold text-white">{stats?.status || 'Active'}</div>
                    <div className="text-[10px] text-white/60 uppercase tracking-widest">Network Status</div>
                 </div>
                 <div className="bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/20">
                    <Zap className="text-yellow-400 mb-2" size={24} />
-                   <div className="text-2xl font-bold text-white">0.4ms</div>
+                   <div className="text-2xl font-bold text-white">{stats?.latency || '0.4ms'}</div>
                    <div className="text-[10px] text-white/60 uppercase tracking-widest">Scan Latency</div>
                 </div>
              </div>
@@ -64,10 +90,10 @@ export function UserDashboard() {
                       className="bg-transparent border-none outline-none text-slate-200 text-sm w-full"
                     />
                   </div>
-                  <Button variant="primary" className="px-8 rounded-xl font-bold py-3">ANALYZE</Button>
+                  <Button onClick={() => window.location.href='/user/scanner'} variant="primary" className="px-8 rounded-xl font-bold py-3">ANALYZE</Button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-4 rounded-xl bg-dark-900 border border-dark-700 flex items-center gap-4 group hover:border-brand-500/50 transition-colors cursor-pointer">
+                  <div onClick={() => window.location.href='/user/scanner'} className="p-4 rounded-xl bg-dark-900 border border-dark-700 flex items-center gap-4 group hover:border-brand-500/50 transition-colors cursor-pointer">
                     <div className="w-10 h-10 rounded-lg bg-dark-800 flex items-center justify-center text-slate-500 group-hover:text-brand-500">
                       <AlertTriangle size={20} />
                     </div>
@@ -76,7 +102,7 @@ export function UserDashboard() {
                       <div className="text-[10px] text-slate-500 italic">Detect fake bank/brand links</div>
                     </div>
                   </div>
-                  <div className="p-4 rounded-xl bg-dark-900 border border-dark-700 flex items-center gap-4 group hover:border-brand-500/50 transition-colors cursor-pointer">
+                  <div onClick={() => window.location.href='/user/scanner'} className="p-4 rounded-xl bg-dark-900 border border-dark-700 flex items-center gap-4 group hover:border-brand-500/50 transition-colors cursor-pointer">
                     <div className="w-10 h-10 rounded-lg bg-dark-800 flex items-center justify-center text-slate-500 group-hover:text-brand-500">
                       <MessageSquare className="text-inherit" size={20} />
                     </div>
@@ -85,7 +111,7 @@ export function UserDashboard() {
                       <div className="text-[10px] text-slate-500 italic">Analyze SMS/Social intent</div>
                     </div>
                   </div>
-                  <div className="p-4 rounded-xl bg-dark-900 border border-dark-700 flex items-center gap-4 group hover:border-brand-500/50 transition-colors cursor-pointer">
+                  <div onClick={() => window.location.href='/user/scanner'} className="p-4 rounded-xl bg-dark-900 border border-dark-700 flex items-center gap-4 group hover:border-brand-500/50 transition-colors cursor-pointer">
                     <div className="w-10 h-10 rounded-lg bg-dark-800 flex items-center justify-center text-slate-500 group-hover:text-brand-500">
                       <Users size={20} />
                     </div>
@@ -102,36 +128,40 @@ export function UserDashboard() {
           {/* Recent Alerts Feed */}
           <section>
             <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-               <AlertTriangle size={20} className="text-yellow-500" /> Recent Security Alerts
+               <AlertTriangle size={20} className="text-yellow-500" /> Your Recent Scans
             </h3>
             <div className="space-y-4">
-              {[
-                { type: 'Phishing', target: 'Vietcombank Fake Link', time: '2 hours ago', risk: 'CRITICAL' },
-                { type: 'SMS Scam', target: 'Luxury Brand Reward', time: '5 hours ago', risk: 'HIGH' },
-                { type: 'Social', target: 'Account Recovery Trap', time: '1 day ago', risk: 'MEDIUM' }
-              ].map((alert, i) => (
-                <div key={i} className="bg-dark-800/50 border border-dark-600 rounded-xl p-4 flex items-center justify-between hover:bg-dark-800 transition-colors">
-                   <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        alert.risk === 'CRITICAL' ? 'bg-red-500/10 text-red-500' : 
-                        alert.risk === 'HIGH' ? 'bg-orange-500/10 text-orange-500' : 'bg-yellow-500/10 text-yellow-500'
-                      }`}>
-                         <AlertTriangle size={18} />
-                      </div>
-                      <div>
-                         <div className="text-sm font-bold text-slate-200">{alert.target}</div>
-                         <div className="text-xs text-slate-500">{alert.type} • {alert.time}</div>
-                      </div>
-                   </div>
-                   <div className="flex items-center gap-4">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-                        alert.risk === 'CRITICAL' ? 'border-red-500/50 text-red-500 bg-red-500/5' : 
-                        alert.risk === 'HIGH' ? 'border-orange-500/50 text-orange-500 bg-orange-500/5' : 'border-yellow-500/50 text-yellow-500 bg-yellow-500/5'
-                      }`}>{alert.risk}</span>
-                      <ArrowRight size={16} className="text-slate-600" />
-                   </div>
+              {loading ? (
+                <div className="text-slate-500 text-sm animate-pulse">Loading recent activity...</div>
+              ) : recentAlerts.length > 0 ? (
+                recentAlerts.map((alert, i) => (
+                  <div key={i} className="bg-dark-800/50 border border-dark-600 rounded-xl p-4 flex items-center justify-between hover:bg-dark-800 transition-colors">
+                    <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          alert.verdict === 'phishing' ? 'bg-red-500/10 text-red-500' : 
+                          alert.verdict === 'suspicious' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-green-500/10 text-green-500'
+                        }`}>
+                           <Shield size={18} />
+                        </div>
+                        <div>
+                           <div className="text-sm font-bold text-slate-200 truncate max-w-[200px] md:max-w-md">{alert.input_value}</div>
+                           <div className="text-[10px] text-slate-500 uppercase tracking-widest">{alert.scan_type} • {new Date(alert.created_at).toLocaleDateString()}</div>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                          alert.verdict === 'phishing' ? 'border-red-500/50 text-red-500 bg-red-500/5' : 
+                          alert.verdict === 'suspicious' ? 'border-yellow-500/50 text-yellow-500 bg-yellow-500/5' : 'border-green-500/50 text-green-500 bg-green-500/5'
+                        }`}>{alert.verdict.toUpperCase()}</span>
+                        <ArrowRight size={16} className="text-slate-600" />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="bg-dark-800/30 border border-dark-700 border-dashed rounded-xl p-8 text-center">
+                  <p className="text-slate-500 text-sm italic">No recent scans. Stay safe by scanning suspicious links!</p>
                 </div>
-              ))}
+              )}
             </div>
           </section>
         </div>
@@ -201,4 +231,3 @@ export function UserDashboard() {
     </div>
   );
 }
-

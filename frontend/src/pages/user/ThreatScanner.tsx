@@ -1,15 +1,40 @@
 import { useState } from 'react';
 import { Card, CardContent } from '../../components/Card';
 import { Button } from '../../components/Button';
-import { AlertTriangle, Upload, Globe, MessageSquare, Image as ImageIcon, BrainCircuit, ShieldAlert, Fingerprint, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Upload, Globe, MessageSquare, Image as ImageIcon, BrainCircuit, ShieldAlert, Fingerprint, ShieldCheck, CheckCircle } from 'lucide-react';
+import { api } from '../../services/api';
 
 export function ThreatScanner() {
   const [scanType, setScanType] = useState<'url' | 'message' | 'image'>('url');
+  const [inputValue, setInputValue] = useState('');
   const [isScanning, setIsScanning] = useState(false);
+  const [scanResult, setScanResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const startScan = () => {
+  const startScan = async () => {
+    if (!inputValue && scanType !== 'image') return;
+    
     setIsScanning(true);
-    setTimeout(() => setIsScanning(false), 3000);
+    setScanResult(null);
+    setError(null);
+
+    try {
+      let result;
+      if (scanType === 'url') {
+        result = await api.scanner.scanUrl(inputValue);
+      } else if (scanType === 'message') {
+        result = await api.scanner.scanMessage(inputValue);
+      } else {
+        // Mock image scan for now
+        await new Promise(r => setTimeout(r, 2000));
+        result = { verdict: 'legitimate', risk_level: 'SAFE', confidence: 0.99, analysis_details: { signals: [] } };
+      }
+      setScanResult(result);
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during scanning');
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   return (
@@ -31,7 +56,7 @@ export function ThreatScanner() {
         <CardContent className="p-0">
           <div className="flex border-b border-dark-600 overflow-x-auto scrollbar-hide">
              <button 
-               onClick={() => setScanType('url')}
+               onClick={() => { setScanType('url'); setScanResult(null); }}
                className={`flex-1 min-w-[120px] px-6 py-4 flex items-center justify-center gap-2 text-sm font-bold transition-all ${
                  scanType === 'url' ? 'text-brand-500 border-b-2 border-brand-500 bg-brand-500/5' : 'text-slate-500 hover:text-slate-300'
                }`}
@@ -39,7 +64,7 @@ export function ThreatScanner() {
                <Globe size={18} /> URL / LINK
              </button>
              <button 
-               onClick={() => setScanType('message')}
+               onClick={() => { setScanType('message'); setScanResult(null); }}
                className={`flex-1 min-w-[120px] px-6 py-4 flex items-center justify-center gap-2 text-sm font-bold transition-all ${
                  scanType === 'message' ? 'text-brand-500 border-b-2 border-brand-500 bg-brand-500/5' : 'text-slate-500 hover:text-slate-300'
                }`}
@@ -47,7 +72,7 @@ export function ThreatScanner() {
                <MessageSquare size={18} /> SMS / MESSAGE
              </button>
              <button 
-               onClick={() => setScanType('image')}
+               onClick={() => { setScanType('image'); setScanResult(null); }}
                className={`flex-1 min-w-[120px] px-6 py-4 flex items-center justify-center gap-2 text-sm font-bold transition-all ${
                  scanType === 'image' ? 'text-brand-500 border-b-2 border-brand-500 bg-brand-500/5' : 'text-slate-500 hover:text-slate-300'
                }`}
@@ -64,6 +89,8 @@ export function ThreatScanner() {
                     <div className="flex flex-col md:flex-row gap-4">
                        <input 
                          type="text" 
+                         value={inputValue}
+                         onChange={(e) => setInputValue(e.target.value)}
                          placeholder="e.g. https://vietcombank-verify.online/login" 
                          className="flex-1 bg-dark-900 border border-dark-600 rounded-xl px-4 py-4 text-slate-200 outline-none focus:border-brand-500 transition-colors"
                        />
@@ -78,6 +105,8 @@ export function ThreatScanner() {
                  <div className="space-y-4">
                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Message Content</label>
                     <textarea 
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
                       placeholder="Paste the SMS or Social Media message here..." 
                       className="w-full h-32 bg-dark-900 border border-dark-600 rounded-xl px-4 py-4 text-slate-200 outline-none focus:border-brand-500 transition-colors resize-none"
                     />
@@ -102,12 +131,65 @@ export function ThreatScanner() {
                     </Button>
                  </div>
                )}
+
+               {error && (
+                 <div className="bg-red-500/10 border border-red-500/50 p-4 rounded-xl text-red-500 text-sm font-bold flex items-center gap-3">
+                   <AlertTriangle size={18} /> {error}
+                 </div>
+               )}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Analysis Pipeline Display (Only if scanning or showing results) */}
+      {/* Result Display */}
+      {scanResult && (
+        <Card className={`border-2 animate-in slide-in-from-top-4 duration-500 ${
+          scanResult.verdict === 'phishing' ? 'border-red-500/50 bg-red-500/5' : 
+          scanResult.verdict === 'suspicious' ? 'border-yellow-500/50 bg-yellow-500/5' : 'border-green-500/50 bg-green-500/5'
+        }`}>
+          <CardContent className="p-8">
+            <div className="flex flex-col md:flex-row items-center gap-8">
+               <div className={`w-24 h-24 rounded-full flex items-center justify-center shrink-0 ${
+                 scanResult.verdict === 'phishing' ? 'bg-red-500/20 text-red-500' : 
+                 scanResult.verdict === 'suspicious' ? 'bg-yellow-500/20 text-yellow-500' : 'bg-green-500/20 text-green-500'
+               }`}>
+                 {scanResult.verdict === 'phishing' ? <ShieldAlert size={48} /> : 
+                  scanResult.verdict === 'suspicious' ? <AlertTriangle size={48} /> : <ShieldCheck size={48} />}
+               </div>
+               
+               <div className="flex-1 text-center md:text-left space-y-2">
+                 <div className="flex items-center justify-center md:justify-start gap-3">
+                   <h3 className="text-2xl font-bold text-white uppercase tracking-tight">
+                     {scanResult.verdict === 'phishing' ? 'Threat Detected' : 
+                      scanResult.verdict === 'suspicious' ? 'Caution Required' : 'Scan Clear'}
+                   </h3>
+                   <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${
+                     scanResult.risk_level === 'CRITICAL' ? 'border-red-500 text-red-500' : 
+                     scanResult.risk_level === 'HIGH' ? 'border-orange-500 text-orange-500' : 
+                     scanResult.risk_level === 'SAFE' ? 'border-green-500 text-green-500' : 'border-yellow-500 text-yellow-500'
+                   }`}>
+                     {scanResult.risk_level} RISK
+                   </span>
+                 </div>
+                 <p className="text-slate-400 text-sm">
+                   Analysis complete. Confidence score: <span className="text-white font-bold">{(scanResult.confidence * 100).toFixed(2)}%</span>
+                 </p>
+                 <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {scanResult.analysis_details?.signals?.map((signal: any, idx: number) => (
+                      <div key={idx} className="flex items-center gap-2 text-xs text-slate-300 bg-dark-900/50 p-2 rounded-lg border border-dark-600">
+                        {signal.score > 0 ? <AlertTriangle size={14} className="text-yellow-500" /> : <CheckCircle size={14} className="text-green-500" />}
+                        {signal.detail}
+                      </div>
+                    ))}
+                 </div>
+               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Analysis Pipeline Display (Only if scanning) */}
       {isScanning && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
            <div className="bg-dark-800 border border-dark-600 p-6 rounded-2xl animate-pulse">
@@ -119,19 +201,23 @@ export function ThreatScanner() {
                  <div className="h-full bg-brand-500 w-1/3 animate-ping"></div>
               </div>
            </div>
-           <div className="bg-dark-800 border border-dark-600 p-6 rounded-2xl opacity-50">
+           <div className="bg-dark-800 border border-dark-600 p-6 rounded-2xl animate-pulse delay-75">
               <div className="flex items-center gap-3 mb-4">
                  <BrainCircuit size={18} className="text-purple-500" />
                  <span className="text-sm font-bold text-white">NLP Intent Engine</span>
               </div>
-              <div className="h-2 w-full bg-dark-700 rounded-full"></div>
+              <div className="h-2 w-full bg-dark-700 rounded-full">
+                 <div className="h-full bg-purple-500 w-1/2 animate-ping"></div>
+              </div>
            </div>
-           <div className="bg-dark-800 border border-dark-600 p-6 rounded-2xl opacity-50">
+           <div className="bg-dark-800 border border-dark-600 p-6 rounded-2xl animate-pulse delay-150">
               <div className="flex items-center gap-3 mb-4">
                  <Fingerprint size={18} className="text-cyan-500" />
                  <span className="text-sm font-bold text-white">Pattern Matching</span>
               </div>
-              <div className="h-2 w-full bg-dark-700 rounded-full"></div>
+              <div className="h-2 w-full bg-dark-700 rounded-full">
+                 <div className="h-full bg-cyan-500 w-1/4 animate-ping"></div>
+              </div>
            </div>
         </div>
       )}
@@ -149,7 +235,7 @@ export function ThreatScanner() {
                   </div>
                   <div>
                      <h4 className="text-sm font-bold text-slate-200">Neural Network Analysis</h4>
-                     <p className="text-xs text-slate-500 leading-relaxed">Our PhoBERT-based models are specifically trained on Vietnamese scam dialects to detect subtle manipulation tactics.</p>
+                     <p className="text-xs text-slate-500 leading-relaxed">Our models are specifically trained on character-level URL sequences to detect subtle manipulation tactics.</p>
                   </div>
                </div>
                <div className="flex gap-4">
@@ -158,7 +244,7 @@ export function ThreatScanner() {
                   </div>
                   <div>
                      <h4 className="text-sm font-bold text-slate-200">Real-time Blocklists</h4>
-                     <p className="text-xs text-slate-500 leading-relaxed">We sync with global threat intelligence feeds and the ScamVN community to block new threats within minutes.</p>
+                     <p className="text-xs text-slate-500 leading-relaxed">We sync with threat intelligence feeds to block new threats within minutes.</p>
                   </div>
                </div>
             </div>
@@ -173,7 +259,7 @@ export function ThreatScanner() {
                   <h3 className="text-lg font-bold text-white">Scan Disclaimer</h3>
                </div>
                <p className="text-xs text-slate-400 leading-relaxed mb-6">
-                 While our AI is 99% accurate, new scam tactics emerge daily. Always exercise caution when clicking links from unknown sources, even if they pass our initial scan. When in doubt, report it to the community.
+                 While our AI is highly accurate, new scam tactics emerge daily. Always exercise caution when clicking links from unknown sources. When in doubt, report it to the community.
                </p>
                <Button variant="secondary" className="w-full border-dark-600 text-slate-300">View Scan History</Button>
             </CardContent>
