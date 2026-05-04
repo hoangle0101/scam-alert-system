@@ -1,9 +1,11 @@
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { AuthProvider } from './contexts/AuthContext';
 import { AdminLayout } from './layouts/AdminLayout';
 import { UserLayout } from './layouts/UserLayout';
 
+import { Login } from './pages/Login';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { GlobalThreats } from './pages/admin/GlobalThreats';
 import { AuditLogs } from './pages/admin/AuditLogs';
@@ -17,34 +19,38 @@ import { ThreatScanner } from './pages/user/ThreatScanner';
 
 function App() {
   return (
-    <ThemeProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Default redirect to User portal */}
-          <Route path="/" element={<Navigate to="/user/dashboard" replace />} />
-          
-          {/* User Portal */}
-          <Route path="/user" element={<UserLayout />}>
-            <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<UserDashboard />} />
-            <Route path="scanner" element={<ThreatScanner />} />
-            <Route path="community" element={<CommunityFeed />} />
-            <Route path="knowledge" element={<KnowledgeBase />} />
-            <Route path="settings" element={<UserSettings />} />
-          </Route>
+    <AuthProvider>
+      <ThemeProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            
+            {/* Default redirect to Login */}
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            
+            {/* User Portal */}
+            <Route path="/user" element={<UserLayout />}>
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<UserDashboard />} />
+              <Route path="scanner" element={<ThreatScanner />} />
+              <Route path="community" element={<CommunityFeed />} />
+              <Route path="knowledge" element={<KnowledgeBase />} />
+              <Route path="settings" element={<UserSettings />} />
+            </Route>
 
-          {/* Admin Portal */}
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<AdminDashboard />} />
-            <Route path="threat-intel" element={<GlobalThreats />} />
-            <Route path="agents" element={<div className="p-6 text-slate-400">Agent Management (WIP)</div>} />
-            <Route path="audit" element={<AuditLogs />} />
-            <Route path="settings" element={<SystemSettings />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </ThemeProvider>
+            {/* Admin Portal */}
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<AdminDashboard />} />
+              <Route path="threat-intel" element={<GlobalThreats />} />
+              <Route path="agents" element={<div className="p-6 text-slate-400">Agent Management (WIP)</div>} />
+              <Route path="audit" element={<AuditLogs />} />
+              <Route path="settings" element={<SystemSettings />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
 
