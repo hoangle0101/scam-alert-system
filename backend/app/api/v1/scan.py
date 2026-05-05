@@ -10,6 +10,9 @@ router = APIRouter(prefix="/scan", tags=["Scanner"])
 class URLScanRequest(BaseModel):
     url: str
 
+class MessageScanRequest(BaseModel):
+    content: str
+
 @router.post("/url")
 async def scan_url(
     data: URLScanRequest, 
@@ -27,6 +30,23 @@ async def scan_url(
     except Exception as e:
         import traceback
         print("\n[ERROR] EXCEPTION IN SCAN ROUTE:")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/message")
+async def scan_message(
+    data: MessageScanRequest, 
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint quét Tin nhắn / Email (AI Text Analysis)
+    """
+    try:
+        print(f"\n[DEBUG] RECEIVED TEXT SCAN REQUEST: {data.content[:50]}...")
+        result = await ScanService.scan_message(db, data.content, None)
+        return result
+    except Exception as e:
+        import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 

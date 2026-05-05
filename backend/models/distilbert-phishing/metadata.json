@@ -1,0 +1,6 @@
+{
+    "threshold": 0.40,
+    "max_length": 256,
+    "model_name": "distilbert-multilingual-phishing",
+    "description": "DistilBERT model trained on English/Vietnamese phishing data and SMS spam."
+}

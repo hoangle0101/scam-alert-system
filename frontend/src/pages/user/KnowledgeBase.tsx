@@ -112,7 +112,7 @@ export function KnowledgeBase() {
                                 </div>
                                 <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{article.author_name}</span>
                              </div>
-                             <Button variant="ghost" size="sm" className="text-brand-500 hover:text-brand-400 p-0 h-auto font-bold text-xs flex items-center gap-1 group/btn">
+                             <Button variant="outline" size="sm" className="text-brand-500 hover:text-brand-400 p-0 h-auto font-bold text-xs flex items-center gap-1 group/btn">
                                 Read More <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
                              </Button>
                           </div>
