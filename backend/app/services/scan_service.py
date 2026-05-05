@@ -5,6 +5,7 @@ from app.models.scan import ScanResult
 from app.models.user import User
 from app.models.audit import AuditLog
 from app.ai.url_scanner import scan_url as ai_scan_url
+from app.ai.text_scanner import scan_message as ai_scan_message
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,58 @@ class ScanService:
             print("--- CRITICAL SCAN ERROR END ---")
             logger.error(f"Scan Service Error: {e}")
             # Trả về một kết quả lỗi giả lập để Frontend không bị 500
+            return {
+                "verdict": "error",
+                "risk_level": "UNKNOWN",
+                "confidence": 0.0,
+                "error": str(e)
+            }
+
+    @staticmethod
+    async def scan_message(db: Session, content: str, user: User = None) -> dict:
+        """
+        Orchestrate Message/SMS scanning.
+        """
+        try:
+            # 1. AI Analysis
+            ai_result = await ai_scan_message(content)
+            
+            verdict = ai_result.get("verdict", "unknown")
+            risk_level = ai_result.get("risk_level", "UNKNOWN")
+            confidence = ai_result.get("confidence", 0.0)
+            
+            # 2. Save to DB
+            db_result = ScanResult(
+                user_id=user.id if user else None,
+                scan_type="message",
+                input_value=content[:500], # Truncate for DB storage
+                verdict=str(verdict),
+                risk_level=str(risk_level),
+                confidence=float(confidence),
+                processing_time_ms=float(ai_result.get("processing_time_ms", 0.0)),
+                model_version=str(ai_result.get("model_version", "v1")),
+                analysis_details=ai_result.get("analysis_details", {}),
+                is_false_positive=False
+            )
+            db.add(db_result)
+            
+            # 3. Audit Log
+            audit = AuditLog(
+                user_id=user.id if user else None,
+                action="scan.message",
+                resource="message",
+                resource_id=None,
+                details={"preview": content[:50], "verdict": verdict},
+                status="success"
+            )
+            db.add(audit)
+            
+            db.commit()
+            return ai_result
+
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Message Scan Service Error: {e}")
             return {
                 "verdict": "error",
                 "risk_level": "UNKNOWN",
