@@ -1,28 +1,129 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/Card';
 import { Button } from '../../components/Button';
-import { ShieldAlert, Activity, Lock, Link, Search, UserPlus, Fingerprint, Eye, TrendingUp } from 'lucide-react';
+import { ShieldAlert, Activity, Lock, Link, Search, UserPlus, Fingerprint, Eye, TrendingUp, CheckCircle, XCircle, Globe, MessageSquare } from 'lucide-react';
 import { GeographicMap } from '../../components/GeographicMap';
+import { api } from '../../services/api';
+
+// Toast Component
+const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 'error' | 'warning' | 'info', onClose: () => void }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 4000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const bgColor = type === 'success' ? 'bg-green-500/20 border-green-500/50 text-green-400' : 
+                  type === 'error' ? 'bg-red-500/20 border-red-500/50 text-red-400' : 
+                  type === 'warning' ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400' :
+                  'bg-blue-500/20 border-blue-500/50 text-blue-400';
+  const Icon = type === 'success' ? CheckCircle : type === 'error' ? XCircle : type === 'warning' ? ShieldAlert : Activity;
+
+  return (
+    <div className={`fixed bottom-6 right-6 z-[999] flex items-center gap-3 px-4 py-3 rounded-lg border backdrop-blur-md shadow-2xl animate-in slide-in-from-bottom-5 fade-in duration-300 ${bgColor}`}>
+      <Icon size={18} />
+      <span className="text-sm font-bold">{message}</span>
+      <button onClick={onClose} className="ml-4 opacity-70 hover:opacity-100">&times;</button>
+    </div>
+  );
+};
 
 export function GlobalThreats() {
-  return (
-    <div className="space-y-6 animate-in fade-in duration-500 pb-10">
+  const [metrics, setMetrics] = useState<any>(null);
+  const [scans, setScans] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'warning' | 'info'} | null>(null);
+
+  // Scanner State
+  const [activeTab, setActiveTab] = useState<'url' | 'message'>('url');
+  const [inputValue, setInputValue] = useState('');
+  const [isScanning, setIsScanning] = useState(false);
+
+  const fetchData = async () => {
+    try {
+      const [metricsData, scansData, usersData] = await Promise.all([
+        api.admin.getModelMetrics(),
+        api.admin.getScans(1),
+        api.admin.getUsers()
+      ]);
+      setMetrics(metricsData);
+      setScans(scansData.scans || []);
+      setUsers((usersData.users || []).slice(0, 5)); // Get top 5 users
+    } catch (err) {
+      console.error(err);
+      setToast({ message: 'Failed to sync Global Intel data', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 10000); // 10s refresh for live feel
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleAdminScan = async () => {
+    if (!inputValue.trim()) return;
+    setIsScanning(true);
+    try {
+      let result;
+      if (activeTab === 'url') {
+        result = await api.scanner.scanUrl(inputValue);
+      } else {
+        result = await api.scanner.scanMessage(inputValue);
+      }
       
+      setInputValue('');
+      if (result.verdict === 'phishing') {
+        setToast({ message: `CRITICAL: Phishing Detected! (${(result.confidence*100).toFixed(2)}%)`, type: 'error' });
+      } else if (result.verdict === 'suspicious') {
+        setToast({ message: `WARNING: Suspicious Content (${(result.confidence*100).toFixed(2)}%)`, type: 'warning' });
+      } else {
+        setToast({ message: 'SAFE: No threats detected.', type: 'success' });
+      }
+      fetchData(); // Refresh logs
+    } catch (e: any) {
+      setToast({ message: e.message || 'Scan failed', type: 'error' });
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  // Calculate percentages for attack vector
+  const scanCounts = { url: 0, message: 0, file: 0 };
+  scans.forEach(s => {
+    if (s.scan_type === 'url') scanCounts.url++;
+    else if (s.scan_type === 'message') scanCounts.message++;
+    else scanCounts.file++;
+  });
+  const totalVector = scanCounts.url + scanCounts.message + scanCounts.file || 1;
+  const pUrl = Math.round((scanCounts.url / totalVector) * 100);
+  const pMsg = Math.round((scanCounts.message / totalVector) * 100);
+  const pFile = Math.round((scanCounts.file / totalVector) * 100);
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500 pb-10 relative">
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
       {/* Top Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
+        <Card className="bg-dark-800 border-dark-600 shadow-xl">
           <CardContent className="p-6">
             <div className="flex justify-between items-start mb-4">
               <h3 className="text-sm font-mono text-slate-400">AI CONFIDENCE</h3>
               <ShieldAlert size={16} className="text-brand-500" />
             </div>
             <div className="flex items-end gap-2">
-              <span className="text-3xl font-bold text-white">99.8%</span>
-              <span className="text-xs text-brand-500 mb-1">+0.2%</span>
+              <span className="text-3xl font-bold text-white">
+                {metrics ? (metrics.avg_confidence * 100).toFixed(2) : '0.00'}%
+              </span>
+              <span className="text-xs text-brand-500 mb-1">Model v1</span>
             </div>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="bg-dark-800 border-dark-600 shadow-xl">
           <CardContent className="p-6">
             <div className="flex justify-between items-start mb-4">
               <h3 className="text-sm font-mono text-slate-400">NETWORK HEALTH</h3>
@@ -30,19 +131,19 @@ export function GlobalThreats() {
             </div>
             <div className="flex items-end gap-2">
               <span className="text-3xl font-bold text-white">Optimal</span>
-              <span className="text-xs text-slate-500 mb-1">12ms</span>
+              <span className="text-xs text-slate-500 mb-1">{metrics ? metrics.avg_processing_time_ms.toFixed(1) : '0'}ms latency</span>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-dark-800 border-dark-600 shadow-xl">
           <CardContent className="p-6">
             <div className="flex justify-between items-start mb-4">
-              <h3 className="text-sm font-mono text-slate-400">ENCRYPTION TRAFFIC</h3>
+              <h3 className="text-sm font-mono text-slate-400">PREDICTIONS MADE</h3>
               <Lock size={16} className="text-slate-400" />
             </div>
             <div className="flex items-end gap-2">
-              <span className="text-3xl font-bold text-white">4.2 TB</span>
+              <span className="text-3xl font-bold text-white">{metrics ? metrics.total_predictions : 0}</span>
               <span className="text-xs text-brand-500 px-2 py-0.5 bg-brand-500/20 rounded font-mono mb-1">Live</span>
             </div>
           </CardContent>
@@ -50,34 +151,47 @@ export function GlobalThreats() {
       </div>
 
       {/* Map and Scanner Section */}
-      <Card className="overflow-hidden flex flex-col">
+      <Card className="bg-dark-800 border-dark-600 overflow-hidden flex flex-col shadow-xl">
         {/* Map Part */}
-        <div className="h-[300px] relative">
+        <div className="h-[350px] relative border-b border-dark-600">
           <div className="absolute top-6 left-6 z-10 pointer-events-none">
             <h2 className="text-xl font-bold text-white mb-1 shadow-black drop-shadow-md">Global Threat Map</h2>
             <p className="text-xs text-slate-300 max-w-md shadow-black drop-shadow-md leading-relaxed">
-              Tracking 1.2 million end points in real-time. Red nodes indicate intrusion attempts blocked in the last 60 minutes.
+              Tracking network end points in real-time. Red nodes indicate intrusion attempts blocked in the last 60 minutes.
             </p>
           </div>
           <GeographicMap />
         </div>
         
         {/* Scanner Part */}
-        <div className="bg-dark-800 p-8 border-t border-dark-600">
+        <div className="bg-dark-900/50 p-8">
           <div className="flex gap-8 mb-6 border-b border-dark-700">
-            <button className="text-sm font-semibold text-brand-500 border-b-2 border-brand-500 pb-2">URL</button>
-            <button className="text-sm font-medium text-slate-500 hover:text-slate-300 pb-2 transition-colors">CONTENT/TEXT</button>
-            <button className="text-sm font-medium text-slate-500 hover:text-slate-300 pb-2 transition-colors">VISUAL/IMAGE</button>
+            <button onClick={() => setActiveTab('url')} className={`text-sm font-semibold transition-colors pb-2 flex items-center gap-2 ${activeTab === 'url' ? 'text-brand-500 border-b-2 border-brand-500' : 'text-slate-500 hover:text-slate-300'}`}>
+              <Globe size={16} /> URL / Domain
+            </button>
+            <button onClick={() => setActiveTab('message')} className={`text-sm font-semibold transition-colors pb-2 flex items-center gap-2 ${activeTab === 'message' ? 'text-brand-500 border-b-2 border-brand-500' : 'text-slate-500 hover:text-slate-300'}`}>
+              <MessageSquare size={16} /> TEXT / SMS
+            </button>
           </div>
 
           <div className="mb-8">
             <label className="block text-xs font-mono text-slate-500 mb-2 uppercase tracking-wider">Target Analytics Endpoint</label>
-            <div className="flex gap-4">
-              <div className="bg-dark-900 border border-dark-700 rounded flex-1 flex items-center px-4 py-3">
-                <Link size={16} className="text-slate-500 mr-3" />
-                <input type="text" placeholder="https://suspicious-domain-analysis.net/" className="bg-transparent border-none outline-none text-sm text-slate-200 w-full font-mono placeholder:text-dark-600" />
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="bg-dark-900 border border-dark-700 rounded-lg flex-1 flex items-center px-4 py-3 focus-within:border-brand-500/50 transition-colors">
+                <Link size={16} className="text-slate-500 mr-3 shrink-0" />
+                <input 
+                  type="text" 
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAdminScan()}
+                  placeholder={activeTab === 'url' ? "https://suspicious-domain-analysis.net/" : "Paste suspicious content..."}
+                  className="bg-transparent border-none outline-none text-sm text-slate-200 w-full font-mono placeholder:text-dark-600" 
+                  disabled={isScanning}
+                />
               </div>
-              <Button variant="primary" className="px-8 shadow-lg shadow-brand-500/20 font-bold tracking-wider">SCAN URL</Button>
+              <Button onClick={handleAdminScan} disabled={isScanning || !inputValue.trim()} variant="primary" className="px-8 shadow-lg shadow-brand-500/20 font-bold tracking-wider py-3 rounded-lg min-w-[160px]">
+                {isScanning ? 'ANALYZING...' : 'SCAN TARGET'}
+              </Button>
             </div>
           </div>
 
@@ -86,157 +200,88 @@ export function GlobalThreats() {
               <Search size={16} /> ANALYSIS PIPELINE
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-dark-900 border border-dark-700 rounded-lg p-5 flex flex-col items-center text-center justify-center relative overflow-hidden">
-                <div className="absolute top-0 w-full h-1 bg-brand-500/50"></div>
-                <div className="w-10 h-10 rounded-full bg-dark-800 border border-dark-600 flex items-center justify-center mb-3">
-                  <Fingerprint size={18} className="text-slate-300" />
+              <div className="bg-dark-900 border border-dark-700 rounded-xl p-5 flex flex-col items-center text-center justify-center relative overflow-hidden group hover:border-brand-500/30 transition-colors">
+                <div className={`absolute top-0 w-full h-1 ${isScanning ? 'bg-brand-500 animate-pulse' : 'bg-brand-500/30'}`}></div>
+                <div className={`w-10 h-10 rounded-full bg-dark-800 border border-dark-600 flex items-center justify-center mb-3 transition-colors ${isScanning ? 'border-brand-500 text-brand-500' : 'text-slate-300'}`}>
+                  <Fingerprint size={18} />
                 </div>
                 <p className="text-[10px] text-slate-500 font-mono mb-1">STEP 1</p>
                 <h4 className="text-sm font-bold text-white mb-1">Phishing Detector</h4>
-                <p className="text-[10px] text-slate-500 font-mono">XGBoost/Random Forest</p>
+                <p className="text-[10px] text-slate-500 font-mono">XGBoost / Random Forest</p>
               </div>
 
-              <div className="bg-dark-900 border border-dark-700 rounded-lg p-5 flex flex-col items-center text-center justify-center relative overflow-hidden">
-                <div className="absolute top-0 w-full h-1 bg-dark-600"></div>
-                <div className="w-10 h-10 rounded-full bg-dark-800 border border-dark-600 flex items-center justify-center mb-3">
-                  <TrendingUp size={18} className="text-slate-300" />
+              <div className="bg-dark-900 border border-dark-700 rounded-xl p-5 flex flex-col items-center text-center justify-center relative overflow-hidden group hover:border-brand-500/30 transition-colors">
+                <div className={`absolute top-0 w-full h-1 ${isScanning ? 'bg-dark-500 animate-pulse delay-75' : 'bg-dark-600'}`}></div>
+                <div className={`w-10 h-10 rounded-full bg-dark-800 border border-dark-600 flex items-center justify-center mb-3 transition-colors ${isScanning ? 'border-slate-400 text-slate-300' : 'text-slate-500'}`}>
+                  <TrendingUp size={18} />
                 </div>
                 <p className="text-[10px] text-slate-500 font-mono mb-1">STEP 2</p>
-                <h4 className="text-sm font-bold text-white mb-1">Scam Analyzer</h4>
-                <p className="text-[10px] text-slate-500 font-mono">BERT/LSTM CORE</p>
+                <h4 className="text-sm font-bold text-slate-300 mb-1">Scam Analyzer</h4>
+                <p className="text-[10px] text-slate-500 font-mono">BERT / LSTM Core</p>
               </div>
 
-              <div className="bg-dark-900 border border-dark-700 rounded-lg p-5 flex flex-col items-center text-center justify-center relative overflow-hidden">
+              <div className="bg-dark-900 border border-dark-700 rounded-xl p-5 flex flex-col items-center text-center justify-center relative overflow-hidden group hover:border-brand-500/30 transition-colors">
                 <div className="absolute top-0 w-full h-1 bg-dark-600"></div>
-                <div className="w-10 h-10 rounded-full bg-dark-800 border border-dark-600 flex items-center justify-center mb-3">
-                  <Eye size={18} className="text-slate-300" />
+                <div className="w-10 h-10 rounded-full bg-dark-800 border border-dark-600 flex items-center justify-center mb-3 text-slate-500">
+                  <Eye size={18} />
                 </div>
                 <p className="text-[10px] text-slate-500 font-mono mb-1">STEP 3</p>
-                <h4 className="text-sm font-bold text-white mb-1">Visual Recognizer</h4>
-                <p className="text-[10px] text-slate-500 font-mono">CNN/ResNet-50</p>
+                <h4 className="text-sm font-bold text-slate-400 mb-1">Visual Recognizer</h4>
+                <p className="text-[10px] text-slate-500 font-mono">CNN / ResNet-50</p>
               </div>
             </div>
           </div>
         </div>
       </Card>
 
-      {/* Family Shield Matrix */}
+      {/* Connected Users Matrix */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-white">Family Shield Protection Matrix</h2>
+          <h2 className="text-xl font-bold text-white">System Nodes (Active Users)</h2>
           <div className="flex gap-3">
             <span className="flex items-center gap-2 text-xs font-mono bg-dark-800 border border-dark-600 px-3 py-1 rounded">
-              <span className="w-2 h-2 rounded-full bg-brand-500"></span> ONLINE
-            </span>
-            <span className="flex items-center gap-2 text-xs font-mono bg-dark-800 border border-dark-600 px-3 py-1 rounded">
-              <span className="w-2 h-2 rounded-full bg-accent-red"></span> PROTECTED
+              <span className="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span> ACTIVE
             </span>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          {/* User 1 */}
-          <Card className="bg-dark-800 border-dark-600 p-4">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded bg-brand-600/20 flex items-center justify-center text-brand-500 border border-brand-500/30 font-bold">JD</div>
-              <div>
-                <h4 className="font-bold text-slate-200 text-sm">Nguyen Admin</h4>
-                <p className="text-[10px] text-slate-500 font-mono uppercase">HOUSEHOLD HEAD</p>
+          {loading ? (
+             [...Array(5)].map((_, i) => (
+               <Card key={i} className="bg-dark-800 border-dark-600 p-4 h-48 animate-pulse"></Card>
+             ))
+          ) : users.map((user) => (
+            <Card key={user.id} className="bg-dark-800 border-dark-600 p-4 hover:border-brand-500/30 transition-colors relative overflow-hidden group">
+              <div className="absolute top-0 left-0 w-1 h-full bg-brand-500/50"></div>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-lg bg-dark-900 flex items-center justify-center text-slate-300 border border-dark-700 font-bold group-hover:border-brand-500/50 transition-colors">
+                  {user.full_name.substring(0, 2).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold text-slate-200 text-sm truncate">{user.full_name}</h4>
+                  <p className="text-[10px] text-slate-500 font-mono uppercase truncate">{user.role}</p>
+                </div>
               </div>
-            </div>
-            <div className="space-y-3 text-xs mb-6 font-mono text-slate-400">
-              <div className="flex justify-between"><span>Uptime</span><span className="text-slate-200">99.9%</span></div>
-              <div className="flex justify-between items-start">
-                <span>Threats</span>
-                <span className="text-accent-red text-right">02 (Blocked)</span>
+              <div className="space-y-3 text-xs mb-6 font-mono text-slate-400">
+                <div className="flex justify-between"><span>Status</span><span className={user.is_active ? "text-brand-500" : "text-slate-500"}>{user.is_active ? 'ONLINE' : 'OFFLINE'}</span></div>
+                <div className="flex justify-between"><span>Total Scans</span><span className="text-white">{user.total_scans}</span></div>
               </div>
-            </div>
-            <div className="bg-dark-900 border border-dark-700 p-3 rounded">
-              <p className="text-[9px] text-slate-500 font-mono mb-2 uppercase">LATEST LOG</p>
-              <p className="text-[11px] text-slate-300 font-mono leading-tight">
-                &gt; Blocked: Phishing URL<br/>
-                &gt; Device: MacBook Pro
-              </p>
-            </div>
-          </Card>
-
-          {/* User 2 */}
-          <Card className="bg-dark-800 border-dark-600 p-4">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded bg-dark-700 flex items-center justify-center text-slate-400 border border-dark-600 font-bold">BB</div>
-              <div>
-                <h4 className="font-bold text-slate-200 text-sm">Little Bi</h4>
-                <p className="text-[10px] text-slate-500 font-mono uppercase">IPAD / GAMING</p>
+              <div className="bg-dark-900/50 border border-dark-700 p-3 rounded-lg">
+                <p className="text-[9px] text-slate-500 font-mono mb-1 uppercase">MEMBER SINCE</p>
+                <p className="text-xs text-slate-300 font-mono">
+                  {new Date(user.created_at).toLocaleDateString()}
+                </p>
               </div>
-            </div>
-            <div className="space-y-3 text-xs mb-6 font-mono text-slate-400">
-              <div className="flex justify-between"><span>Uptime</span><span className="text-slate-200">100%</span></div>
-              <div className="flex justify-between"><span>Threats</span><span className="text-slate-200">0</span></div>
-            </div>
-            <div className="bg-dark-900 border border-dark-700 p-3 rounded">
-              <p className="text-[9px] text-slate-500 font-mono mb-2 uppercase">LATEST LOG</p>
-              <p className="text-[11px] text-slate-300 font-mono leading-tight">
-                &gt; Content Filter Active<br/>
-                &gt; SafeSearch: ON
-              </p>
-            </div>
-          </Card>
-
-          {/* User 3 */}
-          <Card className="bg-dark-800 border-dark-600 p-4">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded bg-accent-red/20 flex items-center justify-center text-accent-red border border-accent-red/30 font-bold">GP</div>
-              <div>
-                <h4 className="font-bold text-slate-200 text-sm">Grandpa</h4>
-                <p className="text-[10px] text-slate-500 font-mono uppercase">ANDROID / NEWS</p>
+            </Card>
+          ))}
+          {users.length < 5 && (
+            <Card className="bg-transparent border border-dashed border-dark-600 flex flex-col items-center justify-center text-center p-6 opacity-50">
+              <div className="w-12 h-12 rounded-full bg-dark-800 flex items-center justify-center mb-4 text-dark-500">
+                <UserPlus size={24} />
               </div>
-            </div>
-            <div className="space-y-3 text-xs mb-6 font-mono text-slate-400">
-              <div className="flex justify-between"><span>Uptime</span><span className="text-slate-200">98.5%</span></div>
-              <div className="flex justify-between items-start">
-                <span>Threats</span>
-                <span className="text-accent-red text-right">05 (Smishing)</span>
-              </div>
-            </div>
-            <div className="bg-dark-900 border border-dark-700 p-3 rounded">
-              <p className="text-[9px] text-slate-500 font-mono mb-2 uppercase">LATEST LOG</p>
-              <p className="text-[11px] text-slate-300 font-mono leading-tight">
-                &gt; Blocked: SMS Bank Scam<br/>
-                &gt; Alert sent to Admin
-              </p>
-            </div>
-          </Card>
-
-          {/* User 4 */}
-          <Card className="bg-dark-800 border-dark-600 p-4">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded bg-dark-700 flex items-center justify-center text-slate-400 border border-dark-600 font-bold">ML</div>
-              <div>
-                <h4 className="font-bold text-slate-200 text-sm">Mom Lan</h4>
-                <p className="text-[10px] text-slate-500 font-mono uppercase">IPHONE / WORK</p>
-              </div>
-            </div>
-            <div className="space-y-3 text-xs mb-6 font-mono text-slate-400">
-              <div className="flex justify-between"><span>Uptime</span><span className="text-slate-200">99.9%</span></div>
-              <div className="flex justify-between"><span>Threats</span><span className="text-slate-200">01</span></div>
-            </div>
-            <div className="bg-dark-900 border border-dark-700 p-3 rounded">
-              <p className="text-[9px] text-slate-500 font-mono mb-2 uppercase">LATEST LOG</p>
-              <p className="text-[11px] text-slate-300 font-mono leading-tight">
-                &gt; VPN: Active (Singapore)<br/>
-                &gt; Email Shield: OK
-              </p>
-            </div>
-          </Card>
-
-          {/* Add Member */}
-          <Card className="bg-transparent border border-dashed border-dark-600 flex flex-col items-center justify-center text-center p-6 cursor-pointer hover:bg-dark-800/50 transition-colors">
-            <div className="w-12 h-12 rounded-full bg-dark-700 flex items-center justify-center mb-4 text-slate-400">
-              <UserPlus size={24} />
-            </div>
-            <h4 className="font-bold text-brand-500 text-sm mb-2 uppercase">Add Member</h4>
-            <p className="text-[10px] text-slate-500">Expand the protection network for your family</p>
-          </Card>
+              <p className="text-[10px] text-slate-500 font-mono uppercase">Node Available</p>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -244,88 +289,90 @@ export function GlobalThreats() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Attack Vector */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Activity size={18} className="text-slate-400"/> Attack Vector Analysis</CardTitle>
+        <Card className="bg-dark-800 border-dark-600">
+          <CardHeader className="border-b border-dark-700 bg-dark-900/30">
+            <CardTitle className="flex items-center gap-2"><Activity size={18} className="text-brand-500"/> Attack Vector Analysis</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-6 pt-6">
             <div>
               <div className="flex justify-between text-xs font-bold font-mono mb-2 text-slate-300">
-                <span>SMS (SMISHING)</span>
-                <span>42%</span>
+                <span>URL (PHISHING)</span>
+                <span>{pUrl}%</span>
               </div>
-              <div className="w-full bg-dark-700 h-2 rounded-full overflow-hidden">
-                <div className="bg-accent-red h-full w-[42%]"></div>
+              <div className="w-full bg-dark-900 h-2 rounded-full overflow-hidden border border-dark-700">
+                <div className="bg-brand-500 h-full transition-all duration-1000" style={{ width: `${pUrl}%` }}></div>
               </div>
             </div>
             <div>
               <div className="flex justify-between text-xs font-bold font-mono mb-2 text-slate-300">
-                <span>EMAIL (PHISHING)</span>
-                <span>35%</span>
+                <span>TEXT/SMS (SMISHING)</span>
+                <span>{pMsg}%</span>
               </div>
-              <div className="w-full bg-dark-700 h-2 rounded-full overflow-hidden">
-                <div className="bg-brand-500 h-full w-[35%]"></div>
+              <div className="w-full bg-dark-900 h-2 rounded-full overflow-hidden border border-dark-700">
+                <div className="bg-accent-red h-full transition-all duration-1000" style={{ width: `${pMsg}%` }}></div>
               </div>
             </div>
             <div>
               <div className="flex justify-between text-xs font-bold font-mono mb-2 text-slate-300">
-                <span>WEB (MALWARE)</span>
-                <span>23%</span>
+                <span>FILE (MALWARE)</span>
+                <span>{pFile}%</span>
               </div>
-              <div className="w-full bg-dark-700 h-2 rounded-full overflow-hidden">
-                <div className="bg-slate-500 h-full w-[23%]"></div>
+              <div className="w-full bg-dark-900 h-2 rounded-full overflow-hidden border border-dark-700">
+                <div className="bg-slate-500 h-full transition-all duration-1000" style={{ width: `${pFile}%` }}></div>
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-4 pt-4">
-              <div className="bg-dark-900 border border-dark-700 rounded p-3 text-center">
-                <p className="text-[10px] text-slate-500 font-mono uppercase mb-1">Latest Spike</p>
-                <p className="text-sm font-bold text-accent-red">+12% SMS</p>
+              <div className="bg-dark-900 border border-dark-700 rounded-xl p-4 text-center shadow-inner">
+                <p className="text-[10px] text-slate-500 font-mono uppercase mb-2">Dominant Vector</p>
+                <p className="text-sm font-bold text-white">
+                  {pUrl >= pMsg && pUrl >= pFile ? 'URL' : pMsg >= pUrl && pMsg >= pFile ? 'TEXT/SMS' : 'FILE'}
+                </p>
               </div>
-              <div className="bg-dark-900 border border-dark-700 rounded p-3 text-center flex flex-col items-center justify-center">
-                <p className="text-[10px] text-slate-500 font-mono uppercase mb-1">Trend</p>
-                <TrendingUp size={16} className="text-brand-500" />
+              <div className="bg-dark-900 border border-dark-700 rounded-xl p-4 text-center flex flex-col items-center justify-center shadow-inner">
+                <p className="text-[10px] text-slate-500 font-mono uppercase mb-2">Trend</p>
+                <TrendingUp size={16} className="text-accent-red" />
               </div>
-              <div className="bg-dark-900 border border-dark-700 rounded p-3 text-center">
-                <p className="text-[10px] text-slate-500 font-mono uppercase mb-1">Accuracy</p>
-                <p className="text-sm font-bold text-white">99.9%</p>
+              <div className="bg-dark-900 border border-dark-700 rounded-xl p-4 text-center shadow-inner">
+                <p className="text-[10px] text-slate-500 font-mono uppercase mb-2">Accuracy</p>
+                <p className="text-sm font-bold text-brand-500">
+                  {metrics ? (metrics.avg_confidence * 100).toFixed(1) : '0'}%
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* System Activity Log */}
-        <Card className="h-full flex flex-col">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Fingerprint size={18} className="text-slate-400"/> Recent System Activity</CardTitle>
+        <Card className="bg-dark-800 border-dark-600 h-full flex flex-col">
+          <CardHeader className="border-b border-dark-700 bg-dark-900/30">
+            <CardTitle className="flex items-center gap-2"><Fingerprint size={18} className="text-brand-500"/> Live Scan Activity</CardTitle>
           </CardHeader>
-          <div className="flex-1 p-4 bg-[#0a0a0f] font-mono text-xs overflow-auto rounded-b-xl border-t border-dark-700">
-            <div className="space-y-4 text-slate-400">
-              <div className="flex gap-3">
-                <span className="text-slate-600 whitespace-nowrap">[14:22:01]</span>
-                <span className="text-brand-500 font-bold whitespace-nowrap">INFO </span>
-                <span className="text-slate-300 leading-relaxed">Kernel update completed. No vulnerabilities found.</span>
-              </div>
-              <div className="flex gap-3">
-                <span className="text-slate-600 whitespace-nowrap">[14:21:45]</span>
-                <span className="text-[#f59e0b] font-bold whitespace-nowrap">WARN </span>
-                <span className="text-[#f59e0b] leading-relaxed">Suspicious TCP/IP handshake detected from IP 192.168.1.42</span>
-              </div>
-              <div className="flex gap-3">
-                <span className="text-slate-600 whitespace-nowrap">[14:21:44]</span>
-                <span className="text-accent-red font-bold whitespace-nowrap">BLOCK</span>
-                <span className="text-accent-red leading-relaxed">Automatic blacklisting applied to source: RU_NODE_99</span>
-              </div>
-              <div className="flex gap-3">
-                <span className="text-slate-600 whitespace-nowrap">[14:18:30]</span>
-                <span className="text-brand-500 font-bold whitespace-nowrap">SCAN </span>
-                <span className="text-slate-300 leading-relaxed">Email analysis complete: attachment 'invoice.zip' marked safe.</span>
-              </div>
-              <div className="flex gap-3">
-                <span className="text-slate-600 whitespace-nowrap">[14:15:12]</span>
-                <span className="text-brand-500 font-bold whitespace-nowrap">INFO </span>
-                <span className="text-slate-300 leading-relaxed">Family Network sync: 5/5 devices verified and encrypted.</span>
-              </div>
+          <div className="flex-1 p-4 bg-dark-950 font-mono text-xs overflow-auto rounded-b-xl max-h-[350px] custom-scrollbar">
+            <div className="space-y-4">
+              {loading ? (
+                <div className="text-slate-500 text-center py-10">Syncing logs...</div>
+              ) : scans.length > 0 ? (
+                scans.map((scan: any) => (
+                  <div key={scan.id} className="flex gap-3 hover:bg-dark-900 p-1 -mx-1 rounded transition-colors group">
+                    <span className="text-slate-600 whitespace-nowrap shrink-0">
+                      [{new Date(scan.created_at).toLocaleTimeString([], {hour12: false})}]
+                    </span>
+                    <span className={`font-bold whitespace-nowrap shrink-0 w-12 ${
+                      scan.verdict === 'phishing' ? 'text-red-500' : 
+                      scan.verdict === 'suspicious' ? 'text-yellow-500' : 'text-green-500'
+                    }`}>
+                      {scan.verdict === 'phishing' ? 'BLOCK' : scan.verdict === 'suspicious' ? 'WARN ' : 'SAFE '}
+                    </span>
+                    <span className="text-slate-300 leading-relaxed break-all line-clamp-2" title={scan.input_value}>
+                      Analyzed {scan.scan_type}: "{scan.input_value}" 
+                      <span className="text-slate-500 ml-2">({(scan.confidence*100).toFixed(0)}%)</span>
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-slate-500 text-center py-10">No recent scan activity detected.</div>
+              )}
             </div>
           </div>
         </Card>

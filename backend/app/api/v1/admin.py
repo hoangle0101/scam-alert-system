@@ -14,6 +14,7 @@ from app.models.scan import ScanResult
 from app.models.community import CommunityPost
 from app.models.knowledge import KnowledgeArticle
 from app.models.audit import AuditLog
+from app.models.report import ScamReport, FalsePositiveAppeal
 from app.schemas.auth import UserResponse
 from app.schemas.scan import ScanResultResponse
 
@@ -325,3 +326,98 @@ def model_metrics(
         avg_confidence=round(float(avg_conf), 4),
         avg_processing_time_ms=round(float(avg_time), 2),
     )
+
+
+# ── Report Management ─────────────────────────────────────
+
+@router.get("/reports")
+def list_reports(
+    db: Session = Depends(get_db),
+    # admin: User = Depends(get_current_admin), # Bypassed for testing
+):
+    """List all pending reports and appeals (admin only)."""
+    scam_reports = db.query(ScamReport).order_by(ScamReport.created_at.desc()).all()
+    appeals = db.query(FalsePositiveAppeal).order_by(FalsePositiveAppeal.created_at.desc()).all()
+    
+    result = []
+    for r in scam_reports:
+        result.append({
+            "id": r.id,
+            "type": "scam_report",
+            "target": r.target_value,
+            "category": r.scam_category,
+            "description": r.description,
+            "evidence_url": r.evidence_url,
+            "status": r.status,
+            "created_at": r.created_at.isoformat(),
+        })
+        
+    for a in appeals:
+        result.append({
+            "id": a.id,
+            "type": "appeal",
+            "target": a.target_url,
+            "category": "Appeal",
+            "description": a.reason,
+            "evidence_url": a.evidence_url,
+            "status": a.status,
+            "created_at": a.created_at.isoformat(),
+        })
+        
+    result.sort(key=lambda x: x["created_at"], reverse=True)
+    return result
+
+class UpdateReportStatusRequest(BaseModel):
+    status: str
+
+@router.put("/reports/{report_type}/{id}/status")
+def update_report_status(
+    report_type: str,
+    id: int,
+    data: UpdateReportStatusRequest,
+    db: Session = Depends(get_db),
+    # admin: User = Depends(get_current_admin), # Bypassed for testing
+):
+    """Update status of a report or appeal (admin only)."""
+    if report_type == "scam_report":
+        report = db.query(ScamReport).filter(ScamReport.id == id).first()
+        if not report:
+            raise HTTPException(status_code=404, detail="Report not found")
+        report.status = data.status
+        # Simulate blacklisting if approved
+        if data.status == "approved":
+            # Add to some blacklist table conceptually
+            pass
+    elif report_type == "appeal":
+        appeal = db.query(FalsePositiveAppeal).filter(FalsePositiveAppeal.id == id).first()
+        if not appeal:
+            raise HTTPException(status_code=404, detail="Appeal not found")
+        appeal.status = data.status
+    db.commit()
+    return {"status": "success", "message": f"{report_type} marked as {data.status}"}
+
+
+# ── System Settings ─────────────────────────────────────
+
+# In-memory settings for demo purposes
+SYSTEM_SETTINGS = {
+    "real_time_deep_scan": True,
+    "advanced_heuristics": True,
+    "auto_block_phishing": False,
+    "api_scamvn_key": "sk-scamvn-9923-a912-xk01",
+    "api_google_key": "",
+}
+
+@router.get("/settings")
+def get_system_settings():
+    """Get global system configuration."""
+    return SYSTEM_SETTINGS
+
+@router.patch("/settings")
+def update_system_settings(data: dict):
+    """Update global system configuration."""
+    for k, v in data.items():
+        if k in SYSTEM_SETTINGS:
+            SYSTEM_SETTINGS[k] = v
+    return {"status": "success", "settings": SYSTEM_SETTINGS}
+

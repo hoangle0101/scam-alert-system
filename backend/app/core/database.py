@@ -38,6 +38,7 @@ def init_db() -> None:
     from app.models.community import CommunityPost, PostComment
     from app.models.knowledge import KnowledgeArticle
     from app.models.audit import AuditLog
+    from app.models.report import ScamReport, FalsePositiveAppeal
     
     Base.metadata.create_all(bind=engine)
 
