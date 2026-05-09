@@ -1,9 +1,22 @@
-
-import { Outlet } from 'react-router-dom';
+import { Outlet, Navigate } from 'react-router-dom';
 import { Sidebar } from '../components/Sidebar';
 import { Header } from '../components/Header';
+import { useAuth } from '../contexts/AuthContext';
 
 export function AdminLayout() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-dark-950 flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!user || user.role !== 'admin') {
+    return <Navigate to="/login" replace />;
+  }
   return (
     <div className="flex min-h-screen bg-dark-900 text-slate-300 font-sans selection:bg-brand-500/30">
       <Sidebar />

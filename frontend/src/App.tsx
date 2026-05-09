@@ -6,6 +6,7 @@ import { AdminLayout } from './layouts/AdminLayout';
 import { UserLayout } from './layouts/UserLayout';
 
 import { Login } from './pages/Login';
+import { Register } from './pages/Register';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { GlobalThreats } from './pages/admin/GlobalThreats';
 import { AuditLogs } from './pages/admin/AuditLogs';
@@ -26,6 +27,7 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
             
             {/* Default redirect to Login */}
             <Route path="/" element={<Navigate to="/login" replace />} />
