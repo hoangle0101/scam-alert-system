@@ -1,231 +1,484 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent } from '../../components/Card';
+import { useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/Card';
 import { Button } from '../../components/Button';
-import { Shield, Search, Users, AlertTriangle, CheckCircle, ArrowRight, ShieldCheck, Zap, Settings, BookOpen, MessageSquare } from 'lucide-react';
+import { Shield, Search, Users, AlertTriangle, CheckCircle, ArrowRight, ShieldCheck, Zap, Settings, BookOpen, MessageSquare, Activity, Globe, Clock, XCircle, ChevronRight, FileText, Download, Copy, ShieldAlert } from 'lucide-react';
 import { api } from '../../services/api';
+import { GeographicMap } from '../../components/GeographicMap';
 
-export function UserDashboard() {
-  const [stats, setStats] = useState<any>(null);
-  const [recentAlerts, setRecentAlerts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
+// Toast Component
+const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 'error' | 'warning' | 'info', onClose: () => void }) => {
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const history = await api.scanner.getHistory(1);
-        setRecentAlerts(history.results.slice(0, 3));
-        
-        setStats({
-          blockedCount: history.results.filter((r: any) => r.verdict === 'phishing').length,
-          latency: '0.4ms',
-          status: 'Active'
-        });
-      } catch (err) {
-        console.error("Failed to fetch dashboard data", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+    const timer = setTimeout(onClose, 4000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const bgColor = type === 'success' ? 'bg-green-500/20 border-green-500/50 text-green-400' : 
+                  type === 'error' ? 'bg-red-500/20 border-red-500/50 text-red-400' : 
+                  type === 'warning' ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400' :
+                  'bg-blue-500/20 border-blue-500/50 text-blue-400';
+  const Icon = type === 'success' ? CheckCircle : type === 'error' ? XCircle : type === 'warning' ? AlertTriangle : Activity;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-16">
-      {/* Hero / Welcome Section */}
-      <section className="relative p-8 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-800 overflow-hidden shadow-2xl shadow-brand-500/20">
-        <div className="absolute top-0 right-0 p-4 opacity-10">
-          <Shield size={200} />
+    <div className={`fixed bottom-6 right-6 z-[999] flex items-center gap-3 px-4 py-3 rounded-lg border backdrop-blur-md shadow-2xl animate-in slide-in-from-bottom-5 fade-in duration-300 ${bgColor}`}>
+      <Icon size={18} />
+      <span className="text-sm font-bold">{message}</span>
+      <button onClick={onClose} className="ml-4 opacity-70 hover:opacity-100">&times;</button>
+    </div>
+  );
+};
+
+export function UserDashboard() {
+  const navigate = useNavigate();
+  const [stats, setStats] = useState<any>({
+    total_scans: 0,
+    phishing_scans: 0,
+    suspicious_scans: 0,
+    safe_scans: 0,
+    avg_latency_ms: 0.0,
+    status: 'Initializing...',
+    threat_level: 'UNKNOWN'
+  });
+  const [recentAlerts, setRecentAlerts] = useState<any[]>([]);
+  const [myReports, setMyReports] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  const [activeTab, setActiveTab] = useState<'url' | 'message' | 'file'>('url');
+  const [inputValue, setInputValue] = useState('');
+  const [isScanning, setIsScanning] = useState(false);
+  const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'warning' | 'info'} | null>(null);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      const [historyData, statsData, reportsData] = await Promise.all([
+        api.scanner.getHistory(1, 10),
+        api.scanner.getStats(),
+        api.reports.getMyReports().catch(() => []) // Phân trang báo cáo cá nhân
+      ]);
+      
+      setRecentAlerts(historyData?.results || []);
+      setStats(statsData || {});
+      setMyReports(reportsData.slice(0, 4) || []); // Lấy 4 báo cáo mới nhất
+    } catch (err) {
+      console.error("Failed to fetch dashboard data", err);
+      setToast({ message: 'Lỗi đồng bộ dữ liệu từ Server', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+    const interval = setInterval(fetchDashboardData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleQuickScan = async () => {
+    if (!inputValue.trim()) return;
+    setIsScanning(true);
+    try {
+      let result;
+      if (activeTab === 'url') {
+        result = await api.scanner.scanUrl(inputValue);
+      } else if (activeTab === 'message') {
+        result = await api.scanner.scanMessage(inputValue);
+      }
+      
+      setInputValue('');
+      
+      // Hiển thị kết quả bằng Toast
+      if (result.verdict === 'phishing') {
+        setToast({ message: `Cảnh báo: Phát hiện liên kết ĐỘC HẠI (${(result.confidence*100).toFixed(0)}%)`, type: 'error' });
+      } else if (result.verdict === 'suspicious') {
+        setToast({ message: `Chú ý: Nội dung ĐÁNG NGỜ (${(result.confidence*100).toFixed(0)}%)`, type: 'warning' });
+      } else {
+        setToast({ message: 'An toàn: Không phát hiện rủi ro.', type: 'success' });
+      }
+      
+      // Refresh lịch sử quét
+      fetchDashboardData();
+    } catch (e: any) {
+      console.error(e);
+      setToast({ message: e.message || 'Lỗi hệ thống phân tích', type: 'error' });
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const exportUserReport = () => {
+    if (!recentAlerts || recentAlerts.length === 0) {
+      setToast({ message: 'Không có dữ liệu để xuất file', type: 'warning' });
+      return;
+    }
+    
+    const csvRows = ['ID,Loại,Nội dung,Kết quả,Độ tin cậy,Thời gian'];
+    recentAlerts.forEach((scan: any) => {
+      csvRows.push(`${scan.id},${scan.scan_type},"${scan.input_value}",${scan.verdict},${scan.confidence},${scan.created_at}`);
+    });
+
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `my_security_report_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    
+    setToast({ message: 'Đã xuất file báo cáo CSV', type: 'info' });
+  };
+
+  const copyInviteLink = () => {
+    navigator.clipboard.writeText('https://scamguardian.vn/invite/FML-849X');
+    setToast({ message: 'Đã sao chép link mời Family Shield!', type: 'success' });
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500 pb-16 max-w-[1600px] mx-auto relative">
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
+      {/* --- HERO SECTION --- */}
+      <section className="relative p-8 lg:p-12 rounded-3xl bg-gradient-to-br from-brand-600 via-brand-800 to-dark-900 overflow-hidden shadow-2xl shadow-brand-500/20 border border-brand-500/20">
+        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none transform translate-x-1/4 -translate-y-1/4">
+          <Shield size={400} />
         </div>
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
-          <div className="text-center md:text-left">
-            <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">Welcome Back, Guardian</h1>
-            <p className="text-brand-100 text-lg max-w-xl">
-              Your Family Shield is active and monitoring for threats. We've analyzed <span className="font-bold text-white">{stats?.blockedCount || 0} suspicious links</span> for you.
+        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          <div className="lg:col-span-7">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/20 border border-brand-500/30 text-brand-300 text-[10px] font-bold uppercase tracking-widest mb-6">
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+              System {stats.status || 'Active'}
+            </div>
+            <h1 className="text-4xl lg:text-5xl font-extrabold text-white mb-4 tracking-tight">
+              Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-blue-300">Guardian</span>
+            </h1>
+            <p className="text-brand-100 text-lg max-w-2xl leading-relaxed mb-8">
+              Your comprehensive protection shield is active. We have analyzed <span className="font-bold text-white bg-white/10 px-2 py-0.5 rounded">{stats.total_scans || 0}</span> threats to date. The current network threat level is <span className={`font-bold px-2 py-0.5 rounded ${stats.threat_level === 'CRITICAL' ? 'bg-red-500/20 text-red-400' : stats.threat_level === 'ELEVATED' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400'}`}>{stats.threat_level || 'NORMAL'}</span>.
             </p>
-            <div className="mt-6 flex flex-wrap gap-4 justify-center md:justify-start">
-              <Button onClick={() => window.location.href='/user/scanner'} variant="primary" className="bg-white text-brand-600 hover:bg-slate-100 px-8 py-3 rounded-xl font-bold shadow-lg">
-                Quick Scan Now
+            <div className="flex flex-wrap gap-4">
+              <Button onClick={() => navigate('/user/scanner')} className="bg-white text-brand-700 hover:bg-slate-100 px-8 py-4 rounded-xl font-bold shadow-lg shadow-white/10 transition-all hover:scale-105">
+                Go to Deep Scanner
               </Button>
-              <Button variant="secondary" className="border-brand-400 text-white hover:bg-brand-500/20 px-8 py-3 rounded-xl font-bold">
-                View Reports
+              <Button onClick={exportUserReport} variant="outline" className="border-white/20 text-white hover:bg-white/10 px-8 py-4 rounded-xl font-bold backdrop-blur-sm transition-all group">
+                <Download size={18} className="mr-2 inline-block group-hover:-translate-y-1 transition-transform" /> View Full Report
               </Button>
             </div>
           </div>
-          <div className="hidden lg:block">
-             <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/20">
-                   <ShieldCheck className="text-green-400 mb-2" size={24} />
-                   <div className="text-2xl font-bold text-white">{stats?.status || 'Active'}</div>
-                   <div className="text-[10px] text-white/60 uppercase tracking-widest">Network Status</div>
-                </div>
-                <div className="bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/20">
-                   <Zap className="text-yellow-400 mb-2" size={24} />
-                   <div className="text-2xl font-bold text-white">{stats?.latency || '0.4ms'}</div>
-                   <div className="text-[10px] text-white/60 uppercase tracking-widest">Scan Latency</div>
-                </div>
+          
+          <div className="lg:col-span-5 grid grid-cols-2 gap-4">
+             <div className="bg-dark-900/60 backdrop-blur-xl p-6 rounded-2xl border border-white/10 hover:border-brand-500/50 transition-colors">
+                <ShieldCheck className="text-green-400 mb-3" size={32} />
+                <div className="text-3xl font-black text-white mb-1">{stats.safe_scans || 0}</div>
+                <div className="text-xs text-slate-400 uppercase tracking-widest font-semibold">Safe Items</div>
+             </div>
+             <div className="bg-dark-900/60 backdrop-blur-xl p-6 rounded-2xl border border-white/10 hover:border-red-500/50 transition-colors relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-16 h-16 bg-red-500/20 blur-2xl rounded-full"></div>
+                <AlertTriangle className="text-red-400 mb-3 relative z-10" size={32} />
+                <div className="text-3xl font-black text-white mb-1 relative z-10">{stats.phishing_scans || 0}</div>
+                <div className="text-xs text-slate-400 uppercase tracking-widest font-semibold relative z-10">Threats Blocked</div>
+             </div>
+             <div className="bg-dark-900/60 backdrop-blur-xl p-6 rounded-2xl border border-white/10 hover:border-yellow-500/50 transition-colors">
+                <Search className="text-yellow-400 mb-3" size={32} />
+                <div className="text-3xl font-black text-white mb-1">{stats.suspicious_scans || 0}</div>
+                <div className="text-xs text-slate-400 uppercase tracking-widest font-semibold">Suspicious</div>
+             </div>
+             <div className="bg-dark-900/60 backdrop-blur-xl p-6 rounded-2xl border border-white/10 hover:border-blue-500/50 transition-colors">
+                <Zap className="text-blue-400 mb-3" size={32} />
+                <div className="text-3xl font-black text-white mb-1">{stats.avg_latency_ms || 0} <span className="text-sm font-normal text-slate-400">ms</span></div>
+                <div className="text-xs text-slate-400 uppercase tracking-widest font-semibold">Avg Response Time</div>
              </div>
           </div>
         </div>
       </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Scanner Card */}
-        <div className="lg:col-span-2 space-y-8">
-          <Card className="bg-dark-800 border-dark-600 overflow-hidden">
+      {/* --- MAIN DASHBOARD GRID --- */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        
+        {/* LEFT COLUMN: 2/3 width */}
+        <div className="xl:col-span-2 space-y-8">
+          
+          {/* Universal Quick Scan Widget */}
+          <Card className="bg-dark-800 border-dark-600 overflow-hidden shadow-xl">
             <CardContent className="p-0">
-              <div className="p-6 border-b border-dark-600 flex justify-between items-center">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Search size={20} className="text-brand-500" /> AI Link & Message Scanner
-                </h3>
-                <span className="text-[10px] bg-brand-500/10 text-brand-500 px-2 py-1 rounded font-mono font-bold tracking-widest">REAL-TIME ENGINE</span>
+              <div className="flex border-b border-dark-600 bg-dark-900/50">
+                <button 
+                  onClick={() => setActiveTab('url')}
+                  className={`flex-1 py-4 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'url' ? 'text-brand-500 border-b-2 border-brand-500 bg-dark-800' : 'text-slate-500 hover:text-slate-300'}`}
+                >
+                  <Globe size={18} /> URL / Link
+                </button>
+                <button 
+                  onClick={() => setActiveTab('message')}
+                  className={`flex-1 py-4 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'message' ? 'text-brand-500 border-b-2 border-brand-500 bg-dark-800' : 'text-slate-500 hover:text-slate-300'}`}
+                >
+                  <MessageSquare size={18} /> SMS / Email
+                </button>
+                <button 
+                  onClick={() => { setActiveTab('file'); setToast({message: 'Tính năng quét ảnh/tệp đang được phát triển', type: 'info'}); }}
+                  className={`flex-1 py-4 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'file' ? 'text-brand-500 border-b-2 border-brand-500 bg-dark-800' : 'text-slate-500 hover:text-slate-300'}`}
+                >
+                  <FileText size={18} /> File / Image
+                </button>
               </div>
               <div className="p-8">
-                <p className="text-slate-400 text-sm mb-6">Paste a suspicious URL, SMS message, or upload an image to verify its safety with our AI models.</p>
-                <div className="flex flex-col md:flex-row gap-4 mb-6">
-                  <div className="flex-1 bg-dark-900 border border-dark-600 rounded-xl flex items-center px-4 py-3 focus-within:border-brand-500 transition-colors">
-                    <Search size={18} className="text-slate-500 mr-3" />
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1 relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Search size={20} className={isScanning ? "text-brand-500 animate-pulse" : "text-slate-500"} />
+                    </div>
                     <input 
                       type="text" 
-                      placeholder="Paste link or message content here..." 
-                      className="bg-transparent border-none outline-none text-slate-200 text-sm w-full"
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleQuickScan()}
+                      placeholder={activeTab === 'url' ? "Paste a suspicious URL here..." : activeTab === 'message' ? "Paste SMS or Email content..." : "Upload feature coming soon..."}
+                      disabled={activeTab === 'file' || isScanning}
+                      className="w-full bg-dark-900 border border-dark-600 rounded-xl py-4 pl-12 pr-4 text-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all outline-none disabled:opacity-50"
                     />
                   </div>
-                  <Button onClick={() => window.location.href='/user/scanner'} variant="primary" className="px-8 rounded-xl font-bold py-3">ANALYZE</Button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div onClick={() => window.location.href='/user/scanner'} className="p-4 rounded-xl bg-dark-900 border border-dark-700 flex items-center gap-4 group hover:border-brand-500/50 transition-colors cursor-pointer">
-                    <div className="w-10 h-10 rounded-lg bg-dark-800 flex items-center justify-center text-slate-500 group-hover:text-brand-500">
-                      <AlertTriangle size={20} />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-slate-200">Phishing Analysis</div>
-                      <div className="text-[10px] text-slate-500 italic">Detect fake bank/brand links</div>
-                    </div>
-                  </div>
-                  <div onClick={() => window.location.href='/user/scanner'} className="p-4 rounded-xl bg-dark-900 border border-dark-700 flex items-center gap-4 group hover:border-brand-500/50 transition-colors cursor-pointer">
-                    <div className="w-10 h-10 rounded-lg bg-dark-800 flex items-center justify-center text-slate-500 group-hover:text-brand-500">
-                      <MessageSquare className="text-inherit" size={20} />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-slate-200">Scam Language</div>
-                      <div className="text-[10px] text-slate-500 italic">Analyze SMS/Social intent</div>
-                    </div>
-                  </div>
-                  <div onClick={() => window.location.href='/user/scanner'} className="p-4 rounded-xl bg-dark-900 border border-dark-700 flex items-center gap-4 group hover:border-brand-500/50 transition-colors cursor-pointer">
-                    <div className="w-10 h-10 rounded-lg bg-dark-800 flex items-center justify-center text-slate-500 group-hover:text-brand-500">
-                      <Users size={20} />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-slate-200">Visual Verification</div>
-                      <div className="text-[10px] text-slate-500 italic">Check deepfake or fake docs</div>
-                    </div>
-                  </div>
+                  <Button 
+                    variant="primary" 
+                    className="px-8 py-4 rounded-xl font-bold shadow-lg shadow-brand-500/20 whitespace-nowrap min-w-[160px]"
+                    onClick={handleQuickScan}
+                    disabled={activeTab === 'file' || !inputValue.trim() || isScanning}
+                  >
+                    {isScanning ? (
+                      <span className="flex items-center gap-2"><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Scanning...</span>
+                    ) : 'Quick Analyze'}
+                  </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Recent Alerts Feed */}
-          <section>
-            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-               <AlertTriangle size={20} className="text-yellow-500" /> Your Recent Scans
-            </h3>
-            <div className="space-y-4">
-              {loading ? (
-                <div className="text-slate-500 text-sm animate-pulse">Loading recent activity...</div>
-              ) : recentAlerts.length > 0 ? (
-                recentAlerts.map((alert, i) => (
-                  <div key={i} className="bg-dark-800/50 border border-dark-600 rounded-xl p-4 flex items-center justify-between hover:bg-dark-800 transition-colors">
-                    <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          alert.verdict === 'phishing' ? 'bg-red-500/10 text-red-500' : 
-                          alert.verdict === 'suspicious' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-green-500/10 text-green-500'
-                        }`}>
-                           <Shield size={18} />
-                        </div>
-                        <div>
-                           <div className="text-sm font-bold text-slate-200 truncate max-w-[200px] md:max-w-md">{alert.input_value}</div>
-                           <div className="text-[10px] text-slate-500 uppercase tracking-widest">{alert.scan_type} • {new Date(alert.created_at).toLocaleDateString()}</div>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-                          alert.verdict === 'phishing' ? 'border-red-500/50 text-red-500 bg-red-500/5' : 
-                          alert.verdict === 'suspicious' ? 'border-yellow-500/50 text-yellow-500 bg-yellow-500/5' : 'border-green-500/50 text-green-500 bg-green-500/5'
-                        }`}>{alert.verdict.toUpperCase()}</span>
-                        <ArrowRight size={16} className="text-slate-600" />
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="bg-dark-800/30 border border-dark-700 border-dashed rounded-xl p-8 text-center">
-                  <p className="text-slate-500 text-sm italic">No recent scans. Stay safe by scanning suspicious links!</p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Detailed Recent Activity Table */}
+            <Card className="bg-dark-800 border-dark-600 shadow-xl col-span-1 lg:col-span-2">
+              <CardContent className="p-0">
+                <div className="p-6 border-b border-dark-600 flex justify-between items-center bg-dark-900/30">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Clock size={20} className="text-brand-500" /> My Scan History
+                  </h3>
+                  <Button variant="outline" size="sm" className="text-xs font-bold border-dark-600 text-slate-300 hover:text-white" onClick={() => navigate('/user/scanner')}>
+                    View Deep Logs
+                  </Button>
                 </div>
-              )}
-            </div>
-          </section>
+                <div className="p-0 overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-dark-900/50 text-slate-400 text-[10px] uppercase tracking-widest">
+                        <th className="p-4 font-semibold">Type</th>
+                        <th className="p-4 font-semibold">Content Target</th>
+                        <th className="p-4 font-semibold">Verdict</th>
+                        <th className="p-4 font-semibold text-right">Time</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-dark-700">
+                      {loading ? (
+                        [...Array(5)].map((_, i) => (
+                          <tr key={i} className="animate-pulse">
+                            <td className="p-4"><div className="w-8 h-8 bg-dark-700 rounded-lg"></div></td>
+                            <td className="p-4"><div className="w-32 h-4 bg-dark-700 rounded"></div></td>
+                            <td className="p-4"><div className="w-20 h-6 bg-dark-700 rounded-full"></div></td>
+                            <td className="p-4 text-right"><div className="w-20 h-4 bg-dark-700 rounded ml-auto"></div></td>
+                          </tr>
+                        ))
+                      ) : recentAlerts.length > 0 ? (
+                        recentAlerts.map((alert: any) => (
+                          <tr key={alert.id} className="hover:bg-dark-700/30 transition-colors group">
+                            <td className="p-4 w-16">
+                              <div className="w-8 h-8 rounded-lg bg-dark-900 border border-dark-600 flex items-center justify-center text-slate-400 group-hover:text-brand-500 transition-colors">
+                                {alert.scan_type === 'url' ? <Globe size={14} /> : <MessageSquare size={14} />}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="text-xs font-medium text-slate-200 truncate max-w-[200px]" title={alert.input_value}>
+                                {alert.input_value}
+                              </div>
+                            </td>
+                            <td className="p-4 w-32">
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                alert.verdict === 'phishing' ? 'border-red-500/30 text-red-400 bg-red-500/10' : 
+                                alert.verdict === 'suspicious' ? 'border-yellow-500/30 text-yellow-400 bg-yellow-500/10' : 'border-green-500/30 text-green-400 bg-green-500/10'
+                              }`}>
+                                {alert.verdict === 'phishing' ? <XCircle size={10} /> : alert.verdict === 'suspicious' ? <AlertTriangle size={10} /> : <CheckCircle size={10} />}
+                                {alert.verdict.toUpperCase()}
+                              </span>
+                            </td>
+                            <td className="p-4 text-right text-[10px] text-slate-500 whitespace-nowrap">
+                              {new Date(alert.created_at).toLocaleString()}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={4} className="p-8 text-center text-slate-500">
+                            <Activity size={24} className="mx-auto mb-3 opacity-20" />
+                            <p className="text-sm">No scans recorded yet. Try scanning a link or message.</p>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* My Community Reports */}
+            <Card className="bg-dark-800 border-dark-600 shadow-xl col-span-1 lg:col-span-2">
+              <CardHeader className="flex flex-row items-center justify-between border-b border-dark-700 pb-4 bg-dark-900/30">
+                <CardTitle className="text-sm font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                  <AlertTriangle size={16} className="text-red-500" /> My Submissions
+                </CardTitle>
+                <Button variant="outline" size="sm" className="border-dark-600 text-slate-300 h-8 hover:text-white" onClick={() => navigate('/user/reports')}>
+                  Report Hub
+                </Button>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="divide-y divide-dark-700">
+                  {loading ? (
+                    <div className="p-6 text-center text-slate-500 text-sm">Loading reports...</div>
+                  ) : myReports.length > 0 ? (
+                    myReports.map((report: any, idx) => (
+                      <div key={idx} className="p-4 hover:bg-dark-900/50 transition-colors cursor-pointer" onClick={() => navigate('/user/reports')}>
+                        <div className="flex justify-between items-start mb-2">
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${report.type === 'Scam Report' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
+                            {report.type}
+                          </span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${report.status === 'pending' ? 'bg-yellow-500/10 text-yellow-500' : report.status === 'approved' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                            {report.status.toUpperCase()}
+                          </span>
+                        </div>
+                        <p className="text-sm font-bold text-slate-200 truncate">{report.target}</p>
+                        <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
+                          <span className="uppercase text-[9px] border border-dark-600 px-1 rounded">{report.category}</span>
+                          <span>Submitted on {new Date(report.date).toLocaleDateString()}</span>
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-8 text-center text-slate-500">
+                      <div className="w-10 h-10 rounded-full bg-dark-700/30 flex items-center justify-center mx-auto mb-3 border border-dark-600">
+                        <ShieldAlert size={16} className="text-slate-400" />
+                      </div>
+                      <p className="text-sm font-bold text-slate-300">No submissions yet</p>
+                      <p className="text-xs text-slate-500 mt-1 mb-4">Help the community by reporting scams</p>
+                      <Button variant="outline" size="sm" className="border-brand-500/30 text-brand-400 hover:bg-brand-500/10" onClick={() => navigate('/user/reports')}>
+                        Submit a Report
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
-        {/* Family Shield Sidebar */}
+        {/* RIGHT COLUMN: 1/3 width */}
         <div className="space-y-8">
-           <Card className="bg-brand-600/5 border-brand-500/20">
-              <CardContent className="p-6">
-                 <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-xl bg-brand-500 flex items-center justify-center text-white shadow-lg shadow-brand-500/20">
-                       <Shield size={20} />
-                    </div>
-                    <div>
-                       <h3 className="text-sm font-bold text-white">Family Shield</h3>
-                       <p className="text-[10px] text-slate-400 uppercase tracking-widest">Guardian Network</p>
-                    </div>
-                 </div>
-                 
-                 <div className="space-y-4 mb-6">
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-dark-800 border border-dark-600">
-                       <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-dark-700 flex items-center justify-center text-[10px] font-bold text-slate-400 border border-dark-600">JD</div>
-                          <div>
-                             <div className="text-xs font-bold text-slate-200">John Doe</div>
-                             <div className="text-[10px] text-green-500 flex items-center gap-1"><CheckCircle size={8} /> Protected</div>
-                          </div>
-                       </div>
-                       <Button variant="outline" size="sm" className="p-1 h-auto text-slate-500"><Settings size={14} /></Button>
-                    </div>
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-dark-800 border border-dark-600">
-                       <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-dark-700 flex items-center justify-center text-[10px] font-bold text-slate-400 border border-dark-600">MW</div>
-                          <div>
-                             <div className="text-xs font-bold text-slate-200">Mary Watson</div>
-                             <div className="text-[10px] text-yellow-500 flex items-center gap-1"><AlertTriangle size={8} /> Needs Review</div>
-                          </div>
-                       </div>
-                       <Button variant="outline" size="sm" className="p-1 h-auto text-slate-500"><Settings size={14} /></Button>
-                    </div>
-                 </div>
+          
+          {/* Threat Landscape Map */}
+          <Card className="bg-dark-800 border-dark-600 shadow-xl overflow-hidden flex flex-col h-[350px]">
+             <div className="p-4 border-b border-dark-600 shrink-0 bg-dark-900/30">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2 uppercase tracking-widest">
+                  <Globe size={16} className="text-brand-500" /> Global Threat Landscape
+                </h3>
+             </div>
+             <div className="flex-1 relative bg-dark-900">
+                <GeographicMap />
+                <div className="absolute bottom-4 left-4 right-4 bg-dark-900/90 backdrop-blur p-4 rounded-xl border border-dark-600 z-[500] shadow-lg">
+                   <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs text-slate-400">Current Threat Level</span>
+                      <span className="text-xs font-bold text-red-400 animate-pulse">HIGH RISK</span>
+                   </div>
+                   <div className="w-full h-1.5 bg-dark-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-yellow-500 to-red-500 w-[75%] relative">
+                        <div className="absolute top-0 right-0 bottom-0 left-0 bg-white/20 animate-pulse"></div>
+                      </div>
+                   </div>
+                </div>
+             </div>
+          </Card>
 
-                 <Button className="w-full bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs py-3 rounded-xl flex items-center justify-center gap-2">
-                    <Users size={14} /> ADD FAMILY MEMBER
-                 </Button>
-              </CardContent>
-           </Card>
+          {/* Family Shield Sidebar */}
+          <Card className="bg-gradient-to-b from-brand-900/20 to-dark-800 border-brand-500/20 shadow-xl relative overflow-hidden">
+             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-400 via-blue-500 to-purple-500"></div>
+             <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white shadow-lg shadow-brand-500/30">
+                        <Shield size={20} />
+                     </div>
+                     <div>
+                        <h3 className="text-base font-bold text-white">Family Shield</h3>
+                        <p className="text-[10px] text-brand-300 font-mono tracking-widest uppercase">3/5 Seats</p>
+                     </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/user/settings')} className="border-dark-600 h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-white flex items-center justify-center">
+                    <Settings size={14} />
+                  </Button>
+                </div>
+                
+                <div className="space-y-3 mb-6">
+                   <div className="flex items-center justify-between p-3 rounded-xl bg-dark-900/50 border border-brand-500/30 transition-colors shadow-[0_0_15px_rgba(59,130,246,0.1)] relative overflow-hidden group">
+                      <div className="absolute inset-0 bg-brand-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <div className="flex items-center gap-3 relative z-10">
+                         <div className="w-10 h-10 rounded-full bg-brand-500/10 text-brand-500 flex items-center justify-center font-bold border border-brand-500/20">ME</div>
+                         <div>
+                            <div className="text-sm font-bold text-white">My Device</div>
+                            <div className="text-[10px] text-green-400 flex items-center gap-1 font-bold uppercase"><CheckCircle size={10} /> Active</div>
+                         </div>
+                      </div>
+                   </div>
+                   <div className="flex items-center justify-between p-3 rounded-xl bg-dark-900/50 border border-dark-600 hover:border-brand-500/30 transition-colors relative group">
+                      <div className="flex items-center gap-3">
+                         <div className="w-10 h-10 rounded-full bg-purple-500/10 text-purple-500 flex items-center justify-center font-bold border border-purple-500/20">MD</div>
+                         <div>
+                            <div className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">Mom's Phone</div>
+                            <div className="text-[10px] text-yellow-500 flex items-center gap-1 font-bold uppercase"><AlertTriangle size={10} /> 1 blocked</div>
+                         </div>
+                      </div>
+                   </div>
+                   <div className="flex items-center justify-between p-3 rounded-xl bg-dark-900/50 border border-dark-600 hover:border-brand-500/30 transition-colors relative group">
+                      <div className="flex items-center gap-3">
+                         <div className="w-10 h-10 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center font-bold border border-blue-500/20">KD</div>
+                         <div>
+                            <div className="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">Kid's iPad</div>
+                            <div className="text-[10px] text-green-500 flex items-center gap-1 font-bold uppercase"><CheckCircle size={10} /> Active</div>
+                         </div>
+                      </div>
+                   </div>
+                </div>
 
-           <Card className="bg-dark-800 border-dark-600">
-              <CardContent className="p-6">
-                 <h3 className="text-sm font-bold text-white mb-4">Security Tip of the Day</h3>
-                 <div className="p-4 rounded-xl bg-dark-900 border border-dark-700">
-                    <div className="flex items-center gap-2 mb-2">
-                       <BookOpen size={16} className="text-brand-500" />
-                       <span className="text-[10px] font-bold text-brand-500 uppercase tracking-widest">Academy Pick</span>
-                    </div>
-                    <p className="text-xs text-slate-300 leading-relaxed italic mb-3">
-                      "Never trust an SMS from a bank that asks you to log in to resolve an 'urgent' issue. Real banks don't send login links via SMS."
-                    </p>
-                    <a href="/user/knowledge" className="text-[10px] font-bold text-slate-400 hover:text-white transition-colors flex items-center gap-1 uppercase tracking-widest">
-                       Learn More <ArrowRight size={10} />
-                    </a>
-                 </div>
-              </CardContent>
-           </Card>
+                <Button onClick={copyInviteLink} variant="outline" className="w-full border-brand-500/30 text-brand-400 hover:bg-brand-500/10 font-bold py-3 rounded-xl border-dashed group">
+                   <Copy size={16} className="mr-2 inline-block group-hover:scale-110 transition-transform" /> Copy Invite Link
+                </Button>
+             </CardContent>
+          </Card>
+
+          {/* Security Academy Tip */}
+          <Card className="bg-dark-800 border-dark-600 shadow-xl group cursor-pointer" onClick={() => navigate('/user/knowledge')}>
+             <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                   <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                     <BookOpen size={16} className="text-brand-500" /> Academy Tip
+                   </h3>
+                   <span className="text-[10px] bg-brand-500/20 text-brand-400 border border-brand-500/20 px-2 py-0.5 rounded font-bold uppercase tracking-wider">Daily</span>
+                </div>
+                <div className="p-4 rounded-xl bg-dark-900 border border-dark-700 relative overflow-hidden">
+                   <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:opacity-[0.08] group-hover:scale-110 transition-all duration-500">
+                     <Shield size={100} />
+                   </div>
+                   <h4 className="text-sm font-bold text-brand-300 mb-2 relative z-10 group-hover:text-brand-400 transition-colors">The "Urgent Action" Trap</h4>
+                   <p className="text-xs text-slate-400 leading-relaxed mb-4 relative z-10">
+                     Scammers often create a false sense of urgency (e.g., "Your account will be locked in 24 hours"). Always pause and verify independently before clicking any links.
+                   </p>
+                   <div className="inline-flex items-center gap-1 text-[10px] font-bold text-brand-500 uppercase tracking-widest relative z-10 group-hover:translate-x-1 transition-transform">
+                      Read full article <ArrowRight size={12} />
+                   </div>
+                </div>
+             </CardContent>
+          </Card>
+
         </div>
       </div>
     </div>

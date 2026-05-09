@@ -1,11 +1,12 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { Shield, Home, Search, BookOpen, Settings as SettingsIcon, MessageSquare } from 'lucide-react';
+import { Shield, Home, Search, BookOpen, Settings as SettingsIcon, MessageSquare, AlertTriangle } from 'lucide-react';
 import { Header } from '../components/Header';
 
 export function UserLayout() {
   const navItems = [
     { icon: Home, label: 'Overview', path: '/user/dashboard' },
     { icon: Search, label: 'Threat Scanner', path: '/user/scanner' },
+    { icon: AlertTriangle, label: 'Report Hub', path: '/user/reports' },
     { icon: MessageSquare, label: 'Community', path: '/user/community' },
     { icon: BookOpen, label: 'Academy', path: '/user/knowledge' },
     { icon: SettingsIcon, label: 'Settings', path: '/user/settings' },

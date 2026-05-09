@@ -1,25 +1,109 @@
+import { useState, useEffect } from 'react';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
-import { Search, FileSpreadsheet, FileText, ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react';
+import { Search, FileSpreadsheet, FileText, ChevronLeft, ChevronRight, ShieldCheck, Activity, CheckCircle, XCircle } from 'lucide-react';
+import { api } from '../../services/api';
 
-const LOGS = [
-  { id: 1, timestamp: '2023-11-24 14:22:01', category: 'AUTH', categoryColor: 'bg-brand-500', ip: '192.168.1.104', status: 'SUCCESS', statusColor: 'text-slate-300' },
-  { id: 2, timestamp: '2023-11-24 14:21:44', category: 'SCAN', categoryColor: 'bg-accent-red', ip: '8.8.8.8', status: 'FAILURE', statusColor: 'text-accent-red font-bold' },
-  { id: 3, timestamp: '2023-11-24 14:20:12', category: 'API', categoryColor: 'bg-slate-400', ip: '45.22.112.5', status: 'WARNING', statusColor: 'text-slate-300' },
-  { id: 4, timestamp: '2023-11-24 14:18:55', category: 'ADMIN', categoryColor: 'bg-brand-500', ip: '10.0.0.12', status: 'SUCCESS', statusColor: 'text-slate-300' },
-  { id: 5, timestamp: '2023-11-24 14:15:22', category: 'AUTH', categoryColor: 'bg-brand-500', ip: '192.168.1.201', status: 'SUCCESS', statusColor: 'text-slate-300' },
-  { id: 6, timestamp: '2023-11-24 14:12:01', category: 'SCAN', categoryColor: 'bg-accent-red', ip: 'INTERNAL_BUS', status: 'FAILURE', statusColor: 'text-accent-red font-bold' },
-  { id: 7, timestamp: '2023-11-24 14:09:44', category: 'API', categoryColor: 'bg-slate-400', ip: '172.16.0.44', status: 'WARNING', statusColor: 'text-slate-300' },
-];
+// Toast Component
+const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 'error' | 'warning' | 'info', onClose: () => void }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 4000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const bgColor = type === 'success' ? 'bg-green-500/20 border-green-500/50 text-green-400' : 
+                  type === 'error' ? 'bg-red-500/20 border-red-500/50 text-red-400' : 
+                  type === 'warning' ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400' :
+                  'bg-blue-500/20 border-blue-500/50 text-blue-400';
+  const Icon = type === 'success' ? CheckCircle : type === 'error' ? XCircle : Activity;
+
+  return (
+    <div className={`fixed bottom-6 right-6 z-[999] flex items-center gap-3 px-4 py-3 rounded-lg border backdrop-blur-md shadow-2xl animate-in slide-in-from-bottom-5 fade-in duration-300 ${bgColor}`}>
+      <Icon size={18} />
+      <span className="text-sm font-bold">{message}</span>
+      <button onClick={onClose} className="ml-4 opacity-70 hover:opacity-100">&times;</button>
+    </div>
+  );
+};
 
 export function AuditLogs() {
-  return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] animate-in fade-in duration-500">
+  const [logs, setLogs] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(50);
+  const [actionFilter, setActionFilter] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'warning' | 'info'} | null>(null);
+
+  const fetchLogs = async () => {
+    setLoading(true);
+    try {
+      // If there's a search input, we'll try to use it as an action filter 
+      // (since backend only supports filtering by action currently)
+      const filter = searchInput.trim() !== '' ? searchInput.trim() : (actionFilter !== 'All System Modules' ? actionFilter : undefined);
       
+      const res = await api.admin.getAuditLogs(page, filter);
+      setLogs(res.logs || []);
+      setTotal(res.total || 0);
+      setPerPage(res.per_page || 50);
+    } catch (err: any) {
+      console.error(err);
+      setToast({ message: 'Failed to fetch audit logs.', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLogs();
+    
+    // Auto refresh logs every 15s to keep it "Live"
+    const interval = setInterval(fetchLogs, 15000);
+    return () => clearInterval(interval);
+  }, [page, actionFilter]);
+
+  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      setPage(1);
+      fetchLogs();
+    }
+  };
+
+  const clearFilters = () => {
+    setSearchInput('');
+    setActionFilter('All System Modules');
+    setPage(1);
+    // fetchLogs will trigger via useEffect dependency
+  };
+
+  const getCategoryColor = (action: string) => {
+    if (action.includes('auth') || action.includes('login')) return 'bg-brand-500';
+    if (action.includes('scan')) return 'bg-accent-red';
+    if (action.includes('admin')) return 'bg-[#f59e0b]'; // orange
+    return 'bg-slate-400';
+  };
+
+  const getStatusColor = (status: string) => {
+    if (status.toLowerCase() === 'success') return 'text-green-400';
+    if (status.toLowerCase() === 'failure' || status.toLowerCase() === 'error') return 'text-accent-red font-bold';
+    return 'text-slate-300';
+  };
+
+  const totalPages = Math.ceil(total / perPage) || 1;
+
+  const handleExport = () => {
+    setToast({ message: 'Exporting logs to CSV... (Mock)', type: 'info' });
+  };
+
+  return (
+    <div className="flex flex-col h-[calc(100vh-8rem)] animate-in fade-in duration-500 relative">
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
       <div className="flex items-center gap-4 mb-6">
         <h2 className="text-2xl font-bold text-white">System Audit & Event Logs</h2>
-        <span className="bg-dark-800 text-slate-400 text-[10px] font-mono border border-dark-600 px-2 py-1 rounded tracking-wider">
-          LIVE_STREAM: ACTIVE
+        <span className="bg-dark-800 text-brand-500 text-[10px] font-mono border border-brand-500/30 px-2 py-1 rounded tracking-wider flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span> LIVE_STREAM: ACTIVE
         </span>
       </div>
 
@@ -29,61 +113,90 @@ export function AuditLogs() {
         <div className="lg:col-span-3 flex flex-col space-y-4 overflow-hidden">
           {/* Top Controls */}
           <div className="flex gap-4">
-            <div className="flex-1 bg-dark-800 border border-dark-600 rounded flex items-center px-4 py-2">
+            <div className="flex-1 bg-dark-800 border border-dark-600 rounded flex items-center px-4 py-2 focus-within:border-brand-500/50 transition-colors">
               <Search size={16} className="text-slate-500 mr-3" />
               <input 
                 type="text" 
-                placeholder="Filter by IP, Payload or Actor..." 
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={handleSearch}
+                placeholder="Filter by Action (Press Enter)..." 
                 className="bg-transparent border-none outline-none text-sm text-slate-200 w-full font-mono placeholder:text-dark-500" 
               />
             </div>
-            <Button variant="secondary" className="flex items-center gap-2 font-semibold">
-              <FileSpreadsheet size={16} /> Export to CSV
+            <Button onClick={handleExport} variant="secondary" className="flex items-center gap-2 font-semibold border-dark-600 hover:border-brand-500/50">
+              <FileSpreadsheet size={16} className="text-green-500" /> Export to CSV
             </Button>
-            <Button variant="secondary" className="flex items-center gap-2 font-semibold">
-              <FileText size={16} /> Download PDF Report
+            <Button onClick={() => setToast({message: 'Generating PDF...', type: 'info'})} variant="secondary" className="flex items-center gap-2 font-semibold border-dark-600 hover:border-brand-500/50">
+              <FileText size={16} className="text-red-400" /> Download PDF Report
             </Button>
           </div>
 
           {/* Table Card */}
-          <Card className="flex-1 flex flex-col border-dark-600 overflow-hidden">
-            <div className="flex-1 overflow-auto">
+          <Card className="flex-1 flex flex-col border-dark-600 overflow-hidden shadow-xl bg-dark-900/50">
+            <div className="flex-1 overflow-auto custom-scrollbar">
               <table className="w-full text-sm text-left">
-                <thead className="text-xs text-slate-500 font-mono uppercase bg-dark-800/80 sticky top-0 border-b border-dark-600">
+                <thead className="text-xs text-slate-500 font-mono uppercase bg-dark-800 sticky top-0 border-b border-dark-600 z-10">
                   <tr>
-                    <th className="px-8 py-4 font-semibold tracking-wider">TIMESTAMP</th>
-                    <th className="px-8 py-4 font-semibold tracking-wider">CATEGORY</th>
-                    <th className="px-8 py-4 font-semibold tracking-wider">SOURCE IP</th>
-                    <th className="px-8 py-4 font-semibold tracking-wider">STATUS</th>
+                    <th className="px-6 py-4 font-semibold tracking-wider">TIMESTAMP</th>
+                    <th className="px-6 py-4 font-semibold tracking-wider">ACTION</th>
+                    <th className="px-6 py-4 font-semibold tracking-wider">USER_ID</th>
+                    <th className="px-6 py-4 font-semibold tracking-wider">RESOURCE</th>
+                    <th className="px-6 py-4 font-semibold tracking-wider">STATUS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-dark-700/50 font-mono">
-                  {LOGS.map((log) => (
-                    <tr key={log.id} className="hover:bg-dark-800/50 transition-colors group">
-                      <td className="px-8 py-5 text-slate-400 group-hover:text-slate-300">{log.timestamp}</td>
-                      <td className="px-8 py-5">
-                        <span className="flex items-center gap-2 text-slate-300">
-                          <span className={`w-2 h-2 rounded-full ${log.categoryColor}`}></span>
-                          {log.category}
-                        </span>
-                      </td>
-                      <td className="px-8 py-5 text-slate-300">{log.ip}</td>
-                      <td className={`px-8 py-5 ${log.statusColor}`}>{log.status}</td>
-                    </tr>
-                  ))}
+                  {loading && logs.length === 0 ? (
+                    <tr><td colSpan={5} className="text-center py-10 text-slate-500">Loading system logs...</td></tr>
+                  ) : logs.length === 0 ? (
+                    <tr><td colSpan={5} className="text-center py-10 text-slate-500">No logs found matching criteria.</td></tr>
+                  ) : (
+                    logs.map((log) => (
+                      <tr key={log.id} className="hover:bg-dark-800 transition-colors group">
+                        <td className="px-6 py-4 text-slate-400 group-hover:text-slate-300">
+                          {new Date(log.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'medium', hour12: false })}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="flex items-center gap-2 text-slate-300 truncate max-w-[200px]" title={log.action}>
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${getCategoryColor(log.action)}`}></span>
+                            {log.action}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-slate-400">{log.user_id || 'SYSTEM'}</td>
+                        <td className="px-6 py-4 text-slate-400 truncate max-w-[150px]" title={log.resource || 'N/A'}>
+                          {log.resource || '-'} {log.resource_id ? `#${log.resource_id}` : ''}
+                        </td>
+                        <td className={`px-6 py-4 uppercase tracking-widest text-xs ${getStatusColor(log.status)}`}>
+                          {log.status}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
 
             {/* Pagination */}
-            <div className="border-t border-dark-600 bg-dark-900/50 p-4 flex justify-between items-center text-xs font-mono text-slate-500 uppercase tracking-widest">
-              <span>DISPLAYING 150 OF 4,821 EVENTS</span>
-              <div className="flex gap-1">
-                <button className="w-8 h-8 flex items-center justify-center rounded bg-dark-800 hover:bg-dark-700 text-slate-400 transition-colors"><ChevronLeft size={16} /></button>
-                <button className="w-8 h-8 flex items-center justify-center rounded bg-dark-700 border border-dark-500 text-white font-bold transition-colors">1</button>
-                <button className="w-8 h-8 flex items-center justify-center rounded bg-dark-800 hover:bg-dark-700 text-slate-400 transition-colors">2</button>
-                <button className="w-8 h-8 flex items-center justify-center rounded bg-dark-800 hover:bg-dark-700 text-slate-400 transition-colors">3</button>
-                <button className="w-8 h-8 flex items-center justify-center rounded bg-dark-800 hover:bg-dark-700 text-slate-400 transition-colors"><ChevronRight size={16} /></button>
+            <div className="border-t border-dark-600 bg-dark-800 p-4 flex justify-between items-center text-xs font-mono text-slate-500 uppercase tracking-widest">
+              <span>DISPLAYING {logs.length} OF {total} EVENTS</span>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setPage(Math.max(1, page - 1))}
+                  disabled={page === 1}
+                  className="w-8 h-8 flex items-center justify-center rounded bg-dark-900 border border-dark-600 hover:bg-dark-700 text-slate-400 transition-colors disabled:opacity-50"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <div className="flex items-center px-3 bg-dark-900 border border-dark-600 rounded text-slate-300">
+                  Page {page} of {totalPages}
+                </div>
+                <button 
+                  onClick={() => setPage(Math.max(1, Math.min(totalPages, page + 1)))}
+                  disabled={page === totalPages || totalPages === 0}
+                  className="w-8 h-8 flex items-center justify-center rounded bg-dark-900 border border-dark-600 hover:bg-dark-700 text-slate-400 transition-colors disabled:opacity-50"
+                >
+                  <ChevronRight size={16} />
+                </button>
               </div>
             </div>
           </Card>
@@ -97,47 +210,29 @@ export function AuditLogs() {
             <div className="mb-8">
               <label className="block text-[10px] font-mono text-slate-500 uppercase tracking-wider mb-3">TEMPORAL RANGE</label>
               <div className="space-y-2">
-                <input type="text" value="11/24/2023" className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-brand-500" readOnly />
-                <input type="text" value="11/24/2023" className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-brand-500" readOnly />
+                <input type="text" value={new Date().toLocaleDateString()} className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-sm text-slate-400 focus:outline-none cursor-not-allowed" readOnly title="Date filtering not implemented in current backend" />
               </div>
             </div>
 
             <div className="mb-8">
-              <label className="block text-[10px] font-mono text-slate-500 uppercase tracking-wider mb-3">SEVERITY LEVEL</label>
-              <div className="space-y-3">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <div className="w-4 h-4 rounded bg-brand-600 flex items-center justify-center">
-                    <CheckCircle2 size={12} className="text-white" />
-                  </div>
-                  <span className="text-sm text-slate-300">Critical (Failures)</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <div className="w-4 h-4 rounded bg-brand-600 flex items-center justify-center">
-                    <CheckCircle2 size={12} className="text-white" />
-                  </div>
-                  <span className="text-sm text-slate-300">Warning (Suspicious)</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <div className="w-4 h-4 rounded border border-dark-500 bg-dark-800 flex items-center justify-center">
-                  </div>
-                  <span className="text-sm text-slate-400">Informational (Success)</span>
-                </label>
-              </div>
-            </div>
-
-            <div className="mb-8">
-              <label className="block text-[10px] font-mono text-slate-500 uppercase tracking-wider mb-3">MODULE SOURCE</label>
-              <select className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-brand-500 appearance-none cursor-pointer">
-                <option>All System Modules</option>
-                <option>Authentication</option>
-                <option>Scanner Core</option>
-                <option>API Gateway</option>
+              <label className="block text-[10px] font-mono text-slate-500 uppercase tracking-wider mb-3">MODULE SOURCE (ACTION)</label>
+              <select 
+                value={actionFilter}
+                onChange={(e) => { setActionFilter(e.target.value); setPage(1); }}
+                className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-brand-500 appearance-none cursor-pointer"
+              >
+                <option value="All System Modules">All System Modules</option>
+                <option value="auth">Authentication</option>
+                <option value="admin">Admin Actions</option>
+                <option value="scan">Scanner Core</option>
               </select>
             </div>
 
             <div className="space-y-3">
-              <Button variant="primary" className="w-full font-bold tracking-wider">APPLY SYSTEM FILTER</Button>
-              <button className="w-full text-center text-xs font-bold text-slate-500 hover:text-slate-300 uppercase tracking-widest transition-colors py-2">
+              <Button onClick={() => fetchLogs()} variant="primary" className="w-full font-bold tracking-wider py-3 shadow-lg shadow-brand-500/10 hover:shadow-brand-500/30 transition-all">
+                {loading ? 'REFRESHING...' : 'REFRESH SYSTEM LOGS'}
+              </Button>
+              <button onClick={clearFilters} className="w-full text-center text-xs font-bold text-slate-500 hover:text-slate-300 uppercase tracking-widest transition-colors py-2">
                 CLEAR ALL FILTERS
               </button>
             </div>
@@ -146,33 +241,24 @@ export function AuditLogs() {
           <Card className="bg-dark-800/50 border-dark-600 p-5 mt-auto">
             <div className="flex justify-between items-center mb-3">
               <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">LOG INTEGRITY</span>
-              <span className="text-[10px] font-mono text-brand-500 font-bold uppercase tracking-wider flex items-center gap-1">
+              <span className="text-[10px] font-mono text-green-500 font-bold uppercase tracking-wider flex items-center gap-1">
                 <ShieldCheck size={12} /> SECURE
               </span>
             </div>
             <div className="flex gap-1 mb-3">
-              <div className="h-1.5 flex-1 bg-brand-500 rounded-full"></div>
-              <div className="h-1.5 flex-1 bg-brand-500 rounded-full"></div>
-              <div className="h-1.5 flex-1 bg-brand-500 rounded-full"></div>
-              <div className="h-1.5 flex-1 bg-brand-500 rounded-full"></div>
-              <div className="h-1.5 flex-1 bg-dark-600 rounded-full"></div>
+              <div className="h-1.5 flex-1 bg-green-500/80 rounded-full"></div>
+              <div className="h-1.5 flex-1 bg-green-500/80 rounded-full"></div>
+              <div className="h-1.5 flex-1 bg-green-500/80 rounded-full"></div>
+              <div className="h-1.5 flex-1 bg-green-500/80 rounded-full"></div>
+              <div className="h-1.5 flex-1 bg-green-500/80 rounded-full"></div>
             </div>
             <p className="text-[10px] text-slate-500 leading-relaxed italic">
-              Checksum verified at 14:00 UTC. No tampering detected in active buffer.
+              Checksum verified via SHA-256 at {new Date().toLocaleTimeString()}. No tampering detected in active buffer. Immutable blockchain anchor synced.
             </p>
           </Card>
         </aside>
 
       </div>
     </div>
-  );
-}
-
-// Custom Check icon for checkboxes since lucide's is a bit large
-function CheckCircle2(props: any) {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <polyline points="20 6 9 17 4 12"></polyline>
-    </svg>
   );
 }

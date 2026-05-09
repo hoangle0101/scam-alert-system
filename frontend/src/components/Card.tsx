@@ -1,13 +1,17 @@
 import React from 'react';
 
 interface CardProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   className?: string;
+  onClick?: () => void;
 }
 
-export function Card({ children, className = '' }: CardProps) {
+export function Card({ children, className = '', onClick }: CardProps) {
   return (
-    <div className={`bg-dark-800/80 backdrop-blur-sm border border-dark-600/50 rounded-xl overflow-hidden ${className}`}>
+    <div 
+      className={`bg-dark-800/80 backdrop-blur-sm border border-dark-600/50 rounded-xl overflow-hidden ${className}`}
+      onClick={onClick}
+    >
       {children}
     </div>
   );
