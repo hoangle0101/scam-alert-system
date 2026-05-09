@@ -1,7 +1,13 @@
 import logging
 import sys
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+import time
+
+# --- Setup Logging ---
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 from app.api.v1.router import api_v1_router
 from app.core.config import get_settings
 from app.core.database import init_db
@@ -45,10 +51,19 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    logger.info(f"Incoming request: {request.method} {request.url.path}")
+    response = await call_next(request)
+    process_time = (time.time() - start_time) * 1000
+    logger.info(f"Completed request: {request.method} {request.url.path} in {process_time:.2f}ms")
+    return response
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False, # Đổi thành False khi dùng allow_origins=["*"] để tránh lỗi bảo mật của Chrome
     allow_methods=["*"],
     allow_headers=["*"],
 )

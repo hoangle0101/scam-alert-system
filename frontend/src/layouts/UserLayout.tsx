@@ -1,8 +1,23 @@
-import { Outlet, NavLink } from 'react-router-dom';
+import { Outlet, NavLink, Navigate } from 'react-router-dom';
 import { Shield, Home, Search, BookOpen, Settings as SettingsIcon, MessageSquare, AlertTriangle } from 'lucide-react';
 import { Header } from '../components/Header';
+import { useAuth } from '../contexts/AuthContext';
 
 export function UserLayout() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-dark-950 flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
   const navItems = [
     { icon: Home, label: 'Overview', path: '/user/dashboard' },
     { icon: Search, label: 'Threat Scanner', path: '/user/scanner' },

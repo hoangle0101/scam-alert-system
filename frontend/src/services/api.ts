@@ -1,7 +1,8 @@
-const API_BASE_URL = 'http://localhost:8001/api/v1';
+const API_BASE_URL = 'http://127.0.0.1:8888/api/v1';
 
 export const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const token = localStorage.getItem('sg_token');
+  console.log(`[API] Calling: ${endpoint}`, options.method || 'GET');
   
   const headers = {
     'Content-Type': 'application/json',
@@ -9,30 +10,38 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
     ...options.headers,
   };
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
 
-  if (response.status === 401) {
-    // Handle unauthorized - maybe logout user
-    localStorage.removeItem('sg_token');
-    localStorage.removeItem('sg_user');
-    window.location.href = '/login';
-    throw new Error('Unauthorized');
+    console.log(`[API] Response: ${endpoint} - Status: ${response.status}`);
+
+    if (response.status === 401 && !endpoint.includes('/auth/login')) {
+      localStorage.removeItem('sg_token');
+      localStorage.removeItem('sg_user');
+      throw new Error('Session expired. Please login again.');
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'API request failed');
+    }
+
+    return response.json();
+  } catch (err: any) {
+    if (err.name === 'TypeError' && err.message === 'Failed to fetch') {
+      throw new Error('Cannot connect to Backend Server. Please ensure it is running on port 8001.');
+    }
+    throw err;
   }
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || 'API request failed');
-  }
-
-  return response.json();
 };
 
 export const api = {
   auth: {
     login: (credentials: any) => apiRequest('/auth/login', { method: 'POST', body: JSON.stringify(credentials) }),
+    register: (data: any) => apiRequest('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
     getMe: () => apiRequest('/auth/me'),
   },
   scanner: {
