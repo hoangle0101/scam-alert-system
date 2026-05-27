@@ -8,4 +8,4 @@ dist/
 backend/models/*.onnx
 backend/models/*.pt
 backend/models/*.h5
-backend/models/distilbert-phishing/model.onnx
+backend/models/distilbert-phishing/model.onnxbackend/scam_guardian.db
