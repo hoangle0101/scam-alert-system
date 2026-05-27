@@ -11,9 +11,7 @@ router = APIRouter(prefix="/scan", tags=["Scanner"])
 # Dùng Class này để hứng dữ liệu
 class URLScanRequest(BaseModel):
     url: str
-
-class MessageScanRequest(BaseModel):
-    content: str
+    model_type: str = "cnn"  # "cnn" or "xgboost"
 
 @router.post("/url")
 async def scan_url(
@@ -25,9 +23,9 @@ async def scan_url(
     """
     try:
         # In log ra terminal để chắc chắn request đã tới
-        print(f"\n[DEBUG] RECEIVED SCAN REQUEST FOR: {data.url}")
+        print(f"\n[DEBUG] RECEIVED SCAN REQUEST FOR: {data.url} USING MODEL: {data.model_type}")
         
-        result = await ScanService.scan_url(db, data.url, None)
+        result = await ScanService.scan_url(db, data.url, None, data.model_type)
         return result
     except Exception as e:
         import traceback
@@ -35,22 +33,7 @@ async def scan_url(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/message")
-async def scan_message(
-    data: MessageScanRequest, 
-    db: Session = Depends(get_db)
-):
-    """
-    Endpoint quét Tin nhắn / Email (AI Text Analysis)
-    """
-    try:
-        print(f"\n[DEBUG] RECEIVED TEXT SCAN REQUEST: {data.content[:50]}...")
-        result = await ScanService.scan_message(db, data.content, None)
-        return result
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+    # Removed scan_message endpoint
 
 @router.get("/history")
 async def get_scan_history(page: int = 1, limit: int = 20, db: Session = Depends(get_db)):

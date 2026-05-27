@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { GeographicMap } from '../../components/GeographicMap';
-import { BarChart, Bar, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { Zap, Users, ShieldAlert, FileSearch, MessageSquare, Download, RefreshCw, Cpu, Clock, Server, AlertTriangle } from 'lucide-react';
+import { ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { Users, ShieldAlert, FileSearch, MessageSquare, Download, RefreshCw, Cpu, Clock, Server, AlertTriangle } from 'lucide-react';
 import { api } from '../../services/api';
 
 export function AdminDashboard() {
@@ -34,16 +34,22 @@ export function AdminDashboard() {
       const [statsData, metricsData, reportsData] = await Promise.all([
         api.admin.getDashboard(),
         api.admin.getModelMetrics(),
-        api.admin.getReports().catch(() => []) // Fallback to empty array if fails
+        api.admin.getReports().catch(() => [])
       ]);
+      
       setStats(statsData);
       setMetrics(metricsData);
-      setPendingReports(reportsData.filter((r: any) => r.status === 'pending').slice(0, 5)); // Chỉ lấy 5 report mới nhất
+      setPendingReports(reportsData.filter((r: any) => r.status === 'pending').slice(0, 5));
+      
+      if (showRefreshAnimation) {
+        // Giả lập độ trễ nhỏ để người dùng thấy animation đồng bộ
+        setTimeout(() => setIsRefreshing(false), 800);
+      }
     } catch (err) {
       console.error("Failed to fetch admin stats", err);
     } finally {
       setLoading(false);
-      setIsRefreshing(false);
+      if (!showRefreshAnimation) setIsRefreshing(false);
     }
   };
 
@@ -85,7 +91,7 @@ export function AdminDashboard() {
       {/* Header Area */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Command Center</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Admin Dashboard</h1>
           <p className="text-slate-400 text-sm mt-1">Real-time overview of the AI defense grid and system metrics.</p>
         </div>
         <div className="flex gap-3">
@@ -259,27 +265,35 @@ export function AdminDashboard() {
                     <tr><td colSpan={5} className="p-8 text-center text-slate-500 text-sm">Loading feed...</td></tr>
                   ) : stats?.recent_scans?.length > 0 ? (
                     stats.recent_scans.map((scan: any) => (
-                      <tr key={scan.id} className="hover:bg-dark-900/50 transition-colors group">
+                      <tr key={scan.id} className="hover:bg-dark-900/50 transition-colors group border-b border-dark-700/30 last:border-0">
                         <td className="px-6 py-4">
-                          <div className="text-xs font-bold text-slate-200 truncate max-w-[250px]">{scan.input_value}</div>
+                          <div className="text-xs font-bold text-slate-200 truncate max-w-[250px] font-mono">{scan.input_value}</div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="text-[10px] font-mono text-slate-500">{scan.scan_type.toUpperCase()}</span>
+                          <div className="flex items-center gap-2">
+                             <div className="w-1.5 h-1.5 rounded-full bg-brand-500"></div>
+                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{scan.scan_type}</span>
+                          </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded border ${
-                            scan.verdict === 'phishing' ? 'border-red-500/50 text-red-500 bg-red-500/10' : 
-                            scan.verdict === 'legitimate' ? 'border-green-500/50 text-green-500 bg-green-500/10' : 'border-yellow-500/50 text-yellow-500 bg-yellow-500/10'
+                          <span className={`text-[9px] font-bold px-2 py-1 rounded border shadow-sm ${
+                            scan.verdict === 'phishing' ? 'border-red-500/50 text-red-400 bg-red-500/10' : 
+                            scan.verdict === 'legitimate' ? 'border-green-500/50 text-green-400 bg-green-500/10' : 'border-yellow-500/50 text-yellow-400 bg-yellow-500/10'
                           }`}>
                             {scan.verdict.toUpperCase()}
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="text-[10px] text-slate-400 font-mono">{(scan.confidence * 100).toFixed(1)}%</div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-1 w-12 bg-dark-900 rounded-full overflow-hidden">
+                              <div className={`h-full ${scan.confidence > 0.8 ? 'bg-red-500' : 'bg-brand-500'}`} style={{ width: `${scan.confidence * 100}%` }}></div>
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-mono">{(scan.confidence * 100).toFixed(0)}%</span>
+                          </div>
                         </td>
-                        <td className="px-6 py-4 flex items-center gap-2">
-                          <Clock size={12} className="text-slate-600" />
-                          <div className="text-[10px] text-slate-500">{new Date(scan.created_at).toLocaleString()}</div>
+                        <td className="px-6 py-4 text-right">
+                          <div className="text-[10px] text-slate-500 font-mono">{new Date(scan.created_at).toLocaleTimeString()}</div>
+                          <div className="text-[9px] text-slate-600 font-mono">{new Date(scan.created_at).toLocaleDateString()}</div>
                         </td>
                       </tr>
                     ))

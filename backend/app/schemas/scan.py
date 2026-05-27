@@ -23,7 +23,7 @@ class ScanResultResponse(BaseModel):
     risk_level: str         # "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "SAFE"
     analysis_details: dict | None = None
     model_version: str
-    processing_time_ms: int | None = None
+    processing_time_ms: float | None = None
     created_at: datetime | None = None
 
     model_config = {"from_attributes": True}

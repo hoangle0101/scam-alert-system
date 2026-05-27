@@ -27,6 +27,8 @@ transformers
 torch
 optimum[onnxruntime]
 numpy
+xgboost
+scikit-learn
 
 # ── Utilities ─────────────────────────────────────────────
 httpx

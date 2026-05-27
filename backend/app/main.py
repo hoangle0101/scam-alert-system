@@ -12,6 +12,7 @@ from app.api.v1.router import api_v1_router
 from app.core.config import get_settings
 from app.core.database import init_db
 from app.ai.url_scanner import load_onnx_model
+from app.ai.xgboost_scanner import load_xgboost_model
 from contextlib import asynccontextmanager
 
 settings = get_settings()
@@ -34,7 +35,8 @@ async def lifespan(app: FastAPI):
         
         print("--- [STARTUP STEP 4] Loading AI Model... ---")
         load_onnx_model()
-        print("--- [STARTUP STEP 5] AI Model Loaded ---")
+        load_xgboost_model()
+        print("--- [STARTUP STEP 5] AI Models Loaded ---")
         
         print("✅ AI Scam Guardian v1.0.0 is ready!")
     except Exception as e:

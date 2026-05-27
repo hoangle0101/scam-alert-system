@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '../../components/Card';
 import { Button } from '../../components/Button';
-import { AlertTriangle, Upload, Globe, MessageSquare, Image as ImageIcon, BrainCircuit, ShieldAlert, Fingerprint, ShieldCheck, CheckCircle, Clock, X, ChevronRight, XCircle } from 'lucide-react';
+import { AlertTriangle, Globe, BrainCircuit, ShieldAlert, Fingerprint, ShieldCheck, CheckCircle, Clock, X, ChevronRight, XCircle } from 'lucide-react';
 import { api } from '../../services/api';
 
 // Toast Component
@@ -25,7 +25,7 @@ const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 
 };
 
 export function ThreatScanner() {
-  const [scanType, setScanType] = useState<'url' | 'message' | 'image'>('url');
+  const [selectedModel, setSelectedModel] = useState<'cnn' | 'xgboost'>('cnn');
   const [inputValue, setInputValue] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<any>(null);
@@ -38,8 +38,8 @@ export function ThreatScanner() {
   const [historyLoading, setHistoryLoading] = useState(false);
 
   const startScan = async () => {
-    if (!inputValue && scanType !== 'image') {
-      setToast({ message: 'Please enter content to scan.', type: 'warning' });
+    if (!inputValue) {
+      setToast({ message: 'Please enter a URL to scan.', type: 'warning' });
       return;
     }
     
@@ -48,16 +48,7 @@ export function ThreatScanner() {
     setError(null);
 
     try {
-      let result;
-      if (scanType === 'url') {
-        result = await api.scanner.scanUrl(inputValue);
-      } else if (scanType === 'message') {
-        result = await api.scanner.scanMessage(inputValue);
-      } else {
-        // Mock image scan for now
-        await new Promise(r => setTimeout(r, 2000));
-        result = { verdict: 'legitimate', risk_level: 'SAFE', confidence: 0.99, analysis_details: { signals: [] } };
-      }
+      const result = await api.scanner.scanUrl(inputValue, selectedModel);
       setScanResult(result);
     } catch (err: any) {
       setError(err.message || 'An error occurred during scanning');
@@ -118,8 +109,7 @@ export function ThreatScanner() {
                           item.verdict === 'suspicious' ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20' : 
                           'bg-green-500/10 text-green-500 border border-green-500/20'
                         }`}>
-                          {item.scan_type === 'url' ? <Globe size={18} /> : 
-                           item.scan_type === 'message' ? <MessageSquare size={18} /> : <ImageIcon size={18} />}
+                          <Globe size={18} />
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-bold text-slate-200 truncate" title={item.input_value}>
@@ -163,7 +153,7 @@ export function ThreatScanner() {
         </div>
         <h1 className="text-4xl font-bold tracking-tight text-white mb-2">AI Threat Scanner</h1>
         <p className="text-slate-400 text-sm leading-relaxed max-w-2xl">
-          Use our deep-learning neural networks to analyze links, messages, and images for hidden scam signatures.
+          Use our deep-learning neural networks to analyze links and URLs for hidden scam signatures.
         </p>
       </section>
 
@@ -175,36 +165,35 @@ export function ThreatScanner() {
         <CardContent className="p-0 relative z-10">
           <div className="flex border-b border-dark-600 overflow-x-auto scrollbar-hide">
              <button 
-               onClick={() => { setScanType('url'); setScanResult(null); setInputValue(''); }}
-               className={`flex-1 min-w-[120px] px-6 py-4 flex items-center justify-center gap-2 text-sm font-bold transition-all ${
-                 scanType === 'url' ? 'text-brand-500 border-b-2 border-brand-500 bg-brand-500/5' : 'text-slate-500 hover:text-slate-300'
+               onClick={() => { setSelectedModel('cnn'); setScanResult(null); }}
+               className={`flex-1 min-w-[120px] px-6 py-4 flex flex-col items-center justify-center gap-1 text-sm font-bold transition-all relative ${
+                 selectedModel === 'cnn' ? 'text-brand-500 bg-brand-500/5' : 'text-slate-500 hover:text-slate-300'
                }`}
              >
-               <Globe size={18} /> URL / LINK
+               <div className="flex items-center gap-2">
+                 <BrainCircuit size={18} /> 1D-CNN Model
+               </div>
+               <span className="text-[10px] font-normal opacity-70">Deep Learning (Character Sequence)</span>
+               {selectedModel === 'cnn' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-brand-500"></div>}
              </button>
              <button 
-               onClick={() => { setScanType('message'); setScanResult(null); setInputValue(''); }}
-               className={`flex-1 min-w-[120px] px-6 py-4 flex items-center justify-center gap-2 text-sm font-bold transition-all ${
-                 scanType === 'message' ? 'text-brand-500 border-b-2 border-brand-500 bg-brand-500/5' : 'text-slate-500 hover:text-slate-300'
+               onClick={() => { setSelectedModel('xgboost'); setScanResult(null); }}
+               className={`flex-1 min-w-[120px] px-6 py-4 flex flex-col items-center justify-center gap-1 text-sm font-bold transition-all relative ${
+                 selectedModel === 'xgboost' ? 'text-green-500 bg-green-500/5' : 'text-slate-500 hover:text-slate-300'
                }`}
              >
-               <MessageSquare size={18} /> SMS / MESSAGE
-             </button>
-             <button 
-               onClick={() => { setScanType('image'); setScanResult(null); setInputValue(''); }}
-               className={`flex-1 min-w-[120px] px-6 py-4 flex items-center justify-center gap-2 text-sm font-bold transition-all ${
-                 scanType === 'image' ? 'text-brand-500 border-b-2 border-brand-500 bg-brand-500/5' : 'text-slate-500 hover:text-slate-300'
-               }`}
-             >
-               <ImageIcon size={18} /> IMAGE / CAPTURE
+               <div className="flex items-center gap-2">
+                 <Fingerprint size={18} /> XGBoost Model
+               </div>
+               <span className="text-[10px] font-normal opacity-70">Gradient Boosting (TF-IDF Features)</span>
+               {selectedModel === 'xgboost' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-green-500"></div>}
              </button>
           </div>
 
           <div className="p-8">
             <div className="max-w-3xl mx-auto space-y-6">
-               {scanType === 'url' && (
                  <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Suspect Link</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Target URL / Link</label>
                     <div className="flex flex-col md:flex-row gap-4">
                        <div className="flex-1 relative group">
                          <input 
@@ -213,7 +202,9 @@ export function ThreatScanner() {
                            onChange={(e) => setInputValue(e.target.value)}
                            onKeyDown={(e) => e.key === 'Enter' && startScan()}
                            placeholder="e.g. https://vietcombank-verify.online/login" 
-                           className="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-4 text-slate-200 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all pr-12"
+                           className={`w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-4 text-slate-200 outline-none transition-all pr-12 focus:ring-1 ${
+                             selectedModel === 'cnn' ? 'focus:border-brand-500 focus:ring-brand-500' : 'focus:border-green-500 focus:ring-green-500'
+                           }`}
                            disabled={isScanning}
                          />
                          {inputValue && !isScanning && (
@@ -222,44 +213,13 @@ export function ThreatScanner() {
                            </button>
                          )}
                        </div>
-                       <Button onClick={startScan} disabled={isScanning || !inputValue.trim()} className="bg-brand-600 hover:bg-brand-500 text-white px-10 py-4 rounded-xl font-bold shadow-lg shadow-brand-500/20 min-w-[180px] hover:scale-105 transition-transform">
+                       <Button onClick={startScan} disabled={isScanning || !inputValue.trim()} className={`text-white px-10 py-4 rounded-xl font-bold shadow-lg min-w-[180px] hover:scale-105 transition-transform ${
+                         selectedModel === 'cnn' ? 'bg-brand-600 hover:bg-brand-500 shadow-brand-500/20' : 'bg-green-600 hover:bg-green-500 shadow-green-500/20'
+                       }`}>
                          {isScanning ? 'ANALYZING...' : 'RUN SCAN'}
                        </Button>
                     </div>
                  </div>
-               )}
-
-               {scanType === 'message' && (
-                 <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Message Content</label>
-                    <textarea 
-                      value={inputValue}
-                      onChange={(e) => setInputValue(e.target.value)}
-                      placeholder="Paste the SMS or Social Media message here..." 
-                      className="w-full h-32 bg-dark-900 border border-dark-600 rounded-xl px-4 py-4 text-slate-200 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all resize-none custom-scrollbar"
-                      disabled={isScanning}
-                    />
-                    <Button onClick={startScan} disabled={isScanning || !inputValue.trim()} className="w-full bg-brand-600 hover:bg-brand-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-brand-500/20 hover:scale-[1.02] transition-transform">
-                      {isScanning ? 'SCANNING CONTENT...' : 'ANALYZE INTENT'}
-                    </Button>
-                 </div>
-               )}
-
-               {scanType === 'image' && (
-                 <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Upload Screenshot</label>
-                    <div className="border-2 border-dashed border-dark-600 rounded-2xl p-12 text-center hover:border-brand-500 hover:bg-brand-500/5 transition-all cursor-pointer group">
-                       <div className="w-16 h-16 rounded-full bg-dark-800 flex items-center justify-center mx-auto mb-4 group-hover:bg-brand-500/20 group-hover:scale-110 transition-all">
-                          <Upload size={32} className="text-slate-500 group-hover:text-brand-500" />
-                       </div>
-                       <h4 className="text-white font-bold mb-1">Drag & Drop or Click to Upload</h4>
-                       <p className="text-xs text-slate-500">Supports PNG, JPG (Max 5MB)</p>
-                    </div>
-                    <Button onClick={startScan} disabled={isScanning} className="w-full bg-brand-600 hover:bg-brand-500 text-white py-4 rounded-xl font-bold hover:scale-[1.02] transition-transform shadow-lg shadow-brand-500/20">
-                      {isScanning ? 'PROCESSING IMAGE...' : 'VISUAL SCAN'}
-                    </Button>
-                 </div>
-               )}
 
                {error && (
                  <div className="bg-red-500/10 border border-red-500/50 p-4 rounded-xl text-red-500 text-sm font-bold flex items-center gap-3 animate-in fade-in zoom-in-95">
@@ -274,13 +234,13 @@ export function ThreatScanner() {
       {/* Analysis Pipeline Display (Only if scanning) */}
       {isScanning && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in slide-in-from-bottom-4 duration-300">
-           <div className="bg-dark-800 border border-brand-500/30 p-6 rounded-2xl animate-pulse shadow-lg shadow-brand-500/5">
+           <div className={`bg-dark-800 border p-6 rounded-2xl animate-pulse shadow-lg ${selectedModel === 'cnn' ? 'border-brand-500/30 shadow-brand-500/5' : 'border-green-500/30 shadow-green-500/5'}`}>
               <div className="flex items-center gap-3 mb-4">
-                 <Globe size={18} className="text-brand-500" />
+                 <Globe size={18} className={selectedModel === 'cnn' ? "text-brand-500" : "text-green-500"} />
                  <span className="text-sm font-bold text-white">DNS & Reputation</span>
               </div>
               <div className="h-2 w-full bg-dark-700 rounded-full overflow-hidden">
-                 <div className="h-full bg-brand-500 w-1/3 animate-ping"></div>
+                 <div className={`h-full w-1/3 animate-ping ${selectedModel === 'cnn' ? 'bg-brand-500' : 'bg-green-500'}`}></div>
               </div>
            </div>
            <div className="bg-dark-800 border border-purple-500/30 p-6 rounded-2xl animate-pulse delay-75 shadow-lg shadow-purple-500/5">
@@ -380,17 +340,17 @@ export function ThreatScanner() {
                      <BrainCircuit className="text-brand-500" size={20} />
                   </div>
                   <div>
-                     <h4 className="text-sm font-bold text-slate-200 mb-1">Neural Network Analysis</h4>
-                     <p className="text-xs text-slate-500 leading-relaxed">Our models are specifically trained on character-level URL sequences and NLP patterns to detect subtle manipulation tactics.</p>
+                     <h4 className="text-sm font-bold text-slate-200 mb-1">1D-CNN (Deep Learning)</h4>
+                     <p className="text-xs text-slate-500 leading-relaxed">Analyzes the raw character sequences of URLs to identify hidden structural anomalies without relying on manual feature extraction.</p>
                   </div>
                </div>
                <div className="flex gap-4 p-4 rounded-xl hover:bg-dark-800 transition-colors">
                   <div className="w-10 h-10 rounded-lg bg-dark-900 flex items-center justify-center shrink-0 border border-dark-700">
-                     <ShieldAlert className="text-brand-500" size={20} />
+                     <Fingerprint className="text-green-500" size={20} />
                   </div>
                   <div>
-                     <h4 className="text-sm font-bold text-slate-200 mb-1">Real-time Blocklists</h4>
-                     <p className="text-xs text-slate-500 leading-relaxed">We sync with global threat intelligence feeds to identify and block emerging threats within minutes.</p>
+                     <h4 className="text-sm font-bold text-slate-200 mb-1">XGBoost (Gradient Boosting)</h4>
+                     <p className="text-xs text-slate-500 leading-relaxed">Uses TF-IDF Vectorization to extract key n-gram features from the URL string, providing high accuracy through ensemble decision trees.</p>
                   </div>
                </div>
             </div>

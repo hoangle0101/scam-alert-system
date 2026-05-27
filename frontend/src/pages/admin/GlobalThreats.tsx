@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/Card';
 import { Button } from '../../components/Button';
-import { ShieldAlert, Activity, Lock, Link, Search, UserPlus, Fingerprint, Eye, TrendingUp, CheckCircle, XCircle, Globe, MessageSquare } from 'lucide-react';
+import { ShieldAlert, Activity, Lock, Link, Search, UserPlus, Fingerprint, Eye, TrendingUp, CheckCircle, XCircle, Globe } from 'lucide-react';
 import { GeographicMap } from '../../components/GeographicMap';
 import { api } from '../../services/api';
 
@@ -28,6 +28,7 @@ const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 
 };
 
 export function GlobalThreats() {
+  const [dashboardStats, setDashboardStats] = useState<any>(null);
   const [metrics, setMetrics] = useState<any>(null);
   const [scans, setScans] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
@@ -35,23 +36,24 @@ export function GlobalThreats() {
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'warning' | 'info'} | null>(null);
 
   // Scanner State
-  const [activeTab, setActiveTab] = useState<'url' | 'message'>('url');
   const [inputValue, setInputValue] = useState('');
   const [isScanning, setIsScanning] = useState(false);
 
   const fetchData = async () => {
     try {
-      const [metricsData, scansData, usersData] = await Promise.all([
+      const [metricsData, scansData, usersData, dashData] = await Promise.all([
         api.admin.getModelMetrics(),
         api.admin.getScans(1),
-        api.admin.getUsers()
+        api.admin.getUsers(),
+        api.admin.getDashboard()
       ]);
       setMetrics(metricsData);
       setScans(scansData.scans || []);
-      setUsers((usersData.users || []).slice(0, 5)); // Get top 5 users
+      setUsers((usersData.users || []).slice(0, 5));
+      setDashboardStats(dashData);
     } catch (err) {
       console.error(err);
-      setToast({ message: 'Failed to sync Global Intel data', type: 'error' });
+      setToast({ message: 'Failed to sync Global Threat data', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -67,12 +69,7 @@ export function GlobalThreats() {
     if (!inputValue.trim()) return;
     setIsScanning(true);
     try {
-      let result;
-      if (activeTab === 'url') {
-        result = await api.scanner.scanUrl(inputValue);
-      } else {
-        result = await api.scanner.scanMessage(inputValue);
-      }
+      const result = await api.scanner.scanUrl(inputValue, 'xgboost');
       
       setInputValue('');
       if (result.verdict === 'phishing') {
@@ -90,17 +87,12 @@ export function GlobalThreats() {
     }
   };
 
-  // Calculate percentages for attack vector
-  const scanCounts = { url: 0, message: 0, file: 0 };
-  scans.forEach(s => {
-    if (s.scan_type === 'url') scanCounts.url++;
-    else if (s.scan_type === 'message') scanCounts.message++;
-    else scanCounts.file++;
-  });
-  const totalVector = scanCounts.url + scanCounts.message + scanCounts.file || 1;
-  const pUrl = Math.round((scanCounts.url / totalVector) * 100);
-  const pMsg = Math.round((scanCounts.message / totalVector) * 100);
-  const pFile = Math.round((scanCounts.file / totalVector) * 100);
+  // Calculate percentages for attack vector from ALL database records
+  const typeStats = dashboardStats?.scan_by_type || { url: 0, message: 0, file: 0 };
+  const totalVector = (Object.values(typeStats).reduce((a: number, b: any) => a + (Number(b) || 0), 0) || 1) as number;
+  const pUrl = Math.round(((typeStats.url || 0) / totalVector) * 100);
+  const pMsg = Math.round(((typeStats.message || 0) / totalVector) * 100);
+  const pFile = Math.round(((typeStats.file || 0) / totalVector) * 100);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10 relative">
@@ -166,11 +158,8 @@ export function GlobalThreats() {
         {/* Scanner Part */}
         <div className="bg-dark-900/50 p-8">
           <div className="flex gap-8 mb-6 border-b border-dark-700">
-            <button onClick={() => setActiveTab('url')} className={`text-sm font-semibold transition-colors pb-2 flex items-center gap-2 ${activeTab === 'url' ? 'text-brand-500 border-b-2 border-brand-500' : 'text-slate-500 hover:text-slate-300'}`}>
+            <button className="text-sm font-semibold transition-colors pb-2 flex items-center gap-2 text-brand-500 border-b-2 border-brand-500">
               <Globe size={16} /> URL / Domain
-            </button>
-            <button onClick={() => setActiveTab('message')} className={`text-sm font-semibold transition-colors pb-2 flex items-center gap-2 ${activeTab === 'message' ? 'text-brand-500 border-b-2 border-brand-500' : 'text-slate-500 hover:text-slate-300'}`}>
-              <MessageSquare size={16} /> TEXT / SMS
             </button>
           </div>
 
@@ -184,7 +173,7 @@ export function GlobalThreats() {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAdminScan()}
-                  placeholder={activeTab === 'url' ? "https://suspicious-domain-analysis.net/" : "Paste suspicious content..."}
+                  placeholder="https://suspicious-domain-analysis.net/"
                   className="bg-transparent border-none outline-none text-sm text-slate-200 w-full font-mono placeholder:text-dark-600" 
                   disabled={isScanning}
                 />

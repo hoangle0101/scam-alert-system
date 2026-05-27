@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ShieldAlert, CheckCircle, XCircle, Search, Filter, AlertTriangle, Eye, Clock, ShieldCheck, ExternalLink, RefreshCw } from 'lucide-react';
+import { ShieldAlert, CheckCircle, XCircle, AlertTriangle, Eye, ShieldCheck, ExternalLink, RefreshCw } from 'lucide-react';
 import { Card, CardContent } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { api } from '../../services/api';
@@ -54,7 +54,7 @@ export function ReportManagement() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-            <ShieldAlert className="text-brand-500" /> Intelligence Queue
+            <ShieldAlert className="text-brand-500" /> Report Management
           </h1>
           <p className="text-slate-400 text-sm mt-1">Review user-submitted scam reports and false positive appeals.</p>
         </div>

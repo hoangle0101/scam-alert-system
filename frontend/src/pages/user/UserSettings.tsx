@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '../../components/Card';
 import { Button } from '../../components/Button';
-import { User, Bell, Shield, Users, Lock, CreditCard, ChevronRight, Edit2, ShieldCheck, Mail, Phone, CheckCircle, XCircle, AlertTriangle, Activity, UserPlus, Trash2, X } from 'lucide-react';
+import { User, Bell, Shield, Users, Lock, ChevronRight, Edit2, ShieldCheck, Mail, Phone, CheckCircle, XCircle, AlertTriangle, Activity, UserPlus, Trash2, X } from 'lucide-react';
 import { api } from '../../services/api';
 
 // Toast Component
@@ -45,8 +45,7 @@ export function UserSettings() {
   // Notification State (Mocked)
   const [notifications, setNotifications] = useState({
     push: true,
-    email: true,
-    sms: false
+    email: true
   });
 
   const fetchData = async () => {
@@ -143,7 +142,7 @@ export function UserSettings() {
         {/* Left Column - Navigation Cards */}
         <div className="lg:col-span-1 space-y-4">
            <div className="bg-dark-800 border border-dark-600 rounded-2xl overflow-hidden">
-              {tabs.map((item, i) => (
+              {tabs.map((item) => (
                 <button 
                   key={item.id}
                   onClick={() => setActiveTab(item.id as any)}
@@ -359,7 +358,6 @@ export function UserSettings() {
                       {[
                         { id: 'push', label: 'Push Notifications', desc: 'Get instant alerts on your device when a threat is detected.' },
                         { id: 'email', label: 'Email Alerts', desc: 'Receive weekly security summaries and critical breach reports.' },
-                        { id: 'sms', label: 'SMS Warnings', desc: 'Urgent text messages for high-risk phishing attempts on family devices.' },
                       ].map((pref) => (
                         <div key={pref.id} className="flex items-center justify-between gap-8 pb-6 border-b border-dark-700 last:border-0 last:pb-0 group">
                            <div className="flex-1">

@@ -5,9 +5,9 @@ import { Button } from './Button';
 
 export function Sidebar() {
     const navItems = [
-    { icon: LayoutDashboard, label: 'Command Center', path: '/admin/dashboard' },
-    { icon: Radar, label: 'Global Intel', path: '/admin/threat-intel' },
-    { icon: AlertTriangle, label: 'Intelligence Queue', path: '/admin/reports' },
+    { icon: LayoutDashboard, label: 'Admin Dashboard', path: '/admin/dashboard' },
+    { icon: Radar, label: 'Global Threat', path: '/admin/threat-intel' },
+    { icon: AlertTriangle, label: 'Report Management', path: '/admin/reports' },
     { icon: Users, label: 'Agent Ops', path: '/admin/agents' },
     { icon: FileText, label: 'System Logs', path: '/admin/audit' },
     { icon: SettingsIcon, label: 'Config Node', path: '/admin/settings' },

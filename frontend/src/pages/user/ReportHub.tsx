@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '../../components/Card';
 import { Button } from '../../components/Button';
-import { Shield, AlertTriangle, FileText, Globe, CheckCircle, ArrowRight, MessageSquare, Plus, Upload, Link as LinkIcon, ShieldAlert, ShieldCheck, ChevronRight, Activity, Clock, BrainCircuit, XCircle, X } from 'lucide-react';
+import { Shield, AlertTriangle, FileText, Globe, CheckCircle, ArrowRight, Link as LinkIcon, ShieldAlert, ShieldCheck, ChevronRight, Activity, Clock, BrainCircuit, X } from 'lucide-react';
 import { api } from '../../services/api';
 
 // Toast Component
@@ -30,7 +30,6 @@ export function ReportHub() {
   
   // States cho Report Scam
   const [reportStep, setReportStep] = useState(1);
-  const [reportType, setReportType] = useState('url');
   const [reportTarget, setReportTarget] = useState('');
   const [reportCategory, setReportCategory] = useState('phishing');
   const [reportDesc, setReportDesc] = useState('');
@@ -72,7 +71,7 @@ export function ReportHub() {
     setReportSubmitting(true);
     try {
       await api.reports.submitScamReport({
-        target_type: reportType,
+        target_type: 'url',
         target_value: reportTarget,
         scam_category: reportCategory,
         description: reportDesc,
@@ -140,30 +139,30 @@ export function ReportHub() {
             Threat Report <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-purple-500">Hub</span>
           </h1>
           <p className="text-slate-400 text-base leading-relaxed max-w-xl">
-            Help us make the internet safer. Report malicious links, fake SMS, or appeal false positive detections. Your reports directly strengthen our global AI defense models.
+            Help us make the internet safer. Report malicious links or appeal false positive detections. Your reports directly strengthen our global AI defense models.
           </p>
         </div>
       </section>
 
       {/* --- TABS --- */}
-      <div className="flex border-b border-dark-600 bg-dark-900/50 p-1.5 rounded-2xl w-fit shadow-inner">
+      <div className="flex border-b border-dark-600 bg-dark-900/40 p-1.5 rounded-2xl w-fit shadow-2xl backdrop-blur-md border border-white/5">
         <button 
           onClick={() => setActiveTab('report')}
-          className={`px-8 py-3.5 text-sm font-bold flex items-center gap-2 rounded-xl transition-all duration-300 ${activeTab === 'report' ? 'text-white bg-dark-700 shadow-md border border-dark-500' : 'text-slate-500 hover:text-slate-300 hover:bg-dark-800'}`}
+          className={`px-10 py-4 text-sm font-bold uppercase tracking-wide flex items-center gap-3 rounded-xl transition-all duration-500 group ${activeTab === 'report' ? 'text-white bg-brand-600 shadow-[0_0_20px_rgba(59,130,246,0.3)] border border-brand-400/50' : 'text-slate-500 hover:text-slate-300 hover:bg-dark-800'}`}
         >
-          <AlertTriangle size={18} className={activeTab === 'report' ? 'text-brand-500' : ''} /> Report Scam
+          <AlertTriangle size={18} className={`${activeTab === 'report' ? 'text-white animate-pulse' : 'text-slate-600 group-hover:text-brand-500'}`} /> Report Scam
         </button>
         <button 
           onClick={() => setActiveTab('appeal')}
-          className={`px-8 py-3.5 text-sm font-bold flex items-center gap-2 rounded-xl transition-all duration-300 ${activeTab === 'appeal' ? 'text-white bg-dark-700 shadow-md border border-dark-500' : 'text-slate-500 hover:text-slate-300 hover:bg-dark-800'}`}
+          className={`px-10 py-4 text-sm font-bold uppercase tracking-wide flex items-center gap-3 rounded-xl transition-all duration-500 group ${activeTab === 'appeal' ? 'text-white bg-yellow-600 shadow-[0_0_20px_rgba(202,138,4,0.3)] border border-yellow-400/50' : 'text-slate-500 hover:text-slate-300 hover:bg-dark-800'}`}
         >
-          <ShieldCheck size={18} className={activeTab === 'appeal' ? 'text-yellow-500' : ''} /> False Positive Appeal
+          <ShieldCheck size={18} className={`${activeTab === 'appeal' ? 'text-white' : 'text-slate-600 group-hover:text-yellow-500'}`} /> False Positive
         </button>
         <button 
           onClick={() => setActiveTab('history')}
-          className={`px-8 py-3.5 text-sm font-bold flex items-center gap-2 rounded-xl transition-all duration-300 ${activeTab === 'history' ? 'text-white bg-dark-700 shadow-md border border-dark-500' : 'text-slate-500 hover:text-slate-300 hover:bg-dark-800'}`}
+          className={`px-10 py-4 text-sm font-bold uppercase tracking-wide flex items-center gap-3 rounded-xl transition-all duration-500 group ${activeTab === 'history' ? 'text-white bg-purple-600 shadow-[0_0_20px_rgba(147,51,234,0.3)] border border-purple-400/50' : 'text-slate-500 hover:text-slate-300 hover:bg-dark-800'}`}
         >
-          <FileText size={18} className={activeTab === 'history' ? 'text-purple-500' : ''} /> My History
+          <FileText size={18} className={`${activeTab === 'history' ? 'text-white' : 'text-slate-600 group-hover:text-purple-500'}`} /> Transmission History
         </button>
       </div>
 
@@ -199,32 +198,28 @@ export function ReportHub() {
                                 }`}>
                                   {reportStep > step ? <CheckCircle size={18} /> : step}
                                 </div>
-                                <span className={`text-[10px] font-bold uppercase tracking-widest absolute -bottom-6 whitespace-nowrap transition-colors ${reportStep >= step ? 'text-brand-400' : 'text-slate-600'}`}>
-                                  {step === 1 ? 'Threat Type' : step === 2 ? 'Details' : 'Evidence'}
+                                <span className={`text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${reportStep >= step ? 'text-brand-400' : 'text-slate-600'}`}>
+                                  {step === 1 ? 'Target URL' : step === 2 ? 'Analysis' : 'Evidence'}
                                 </span>
                               </div>
                             ))}
                          </div>
                       </div>
 
-                      {/* Step 1: Type Selection */}
+                      {/* Step 1: Target & Classification */}
                       {reportStep === 1 && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
                           <div>
-                            <label className="block text-sm font-bold text-slate-300 mb-4">Identify the Threat Vector</label>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                               <button onClick={() => setReportType('url')} className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center gap-4 transition-all duration-300 ${reportType === 'url' ? 'bg-brand-500/10 border-brand-500 text-brand-400 shadow-lg shadow-brand-500/10 scale-[1.02]' : 'bg-dark-900/50 border-dark-600 text-slate-400 hover:border-slate-500 hover:bg-dark-800'}`}>
-                                  <div className={`p-4 rounded-full ${reportType === 'url' ? 'bg-brand-500/20' : 'bg-dark-800'}`}>
-                                    <Globe size={32} />
-                                  </div>
-                                  <span className="text-base font-bold">Malicious Link / Website</span>
-                               </button>
-                               <button onClick={() => setReportType('message')} className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center gap-4 transition-all duration-300 ${reportType === 'message' ? 'bg-brand-500/10 border-brand-500 text-brand-400 shadow-lg shadow-brand-500/10 scale-[1.02]' : 'bg-dark-900/50 border-dark-600 text-slate-400 hover:border-slate-500 hover:bg-dark-800'}`}>
-                                  <div className={`p-4 rounded-full ${reportType === 'message' ? 'bg-brand-500/20' : 'bg-dark-800'}`}>
-                                    <MessageSquare size={32} />
-                                  </div>
-                                  <span className="text-base font-bold">Scam SMS / Email</span>
-                               </button>
+                            <label className="block text-sm font-bold text-slate-300 mb-3">Suspicious URL Target</label>
+                            <div className="relative group">
+                              <Globe size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-brand-500 transition-colors" />
+                              <input 
+                                type="text" 
+                                value={reportTarget}
+                                onChange={(e) => setReportTarget(e.target.value)}
+                                placeholder="e.g., https://secure-login-verify.com/bank"
+                                className="w-full bg-dark-900/80 border border-dark-600 rounded-xl py-4 pl-12 pr-4 text-slate-200 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all font-mono text-sm"
+                              />
                             </div>
                           </div>
                           <div>
@@ -233,7 +228,7 @@ export function ReportHub() {
                               <select 
                                 value={reportCategory}
                                 onChange={(e) => setReportCategory(e.target.value)}
-                                className="w-full bg-dark-900/80 border border-dark-600 rounded-xl px-5 py-4 text-slate-200 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all appearance-none cursor-pointer"
+                                className="w-full bg-dark-900/80 border border-dark-600 rounded-xl px-5 py-4 text-slate-200 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all appearance-none cursor-pointer text-sm"
                               >
                                 <option value="phishing">Phishing / Credential Theft</option>
                                 <option value="impersonation">Brand/Person Impersonation</option>
@@ -247,8 +242,8 @@ export function ReportHub() {
                             </div>
                           </div>
                           <div className="flex justify-end pt-8">
-                            <Button onClick={() => setReportStep(2)} variant="primary" className="px-8 py-3 rounded-xl font-bold shadow-lg shadow-brand-500/20 hover:scale-[1.02] transition-transform">
-                              Proceed to Details <ArrowRight size={18} className="ml-2 inline" />
+                            <Button onClick={() => setReportStep(2)} disabled={!reportTarget} variant="primary" className="px-8 py-3 rounded-xl font-bold shadow-lg shadow-brand-500/20 hover:scale-[1.02] transition-transform">
+                              Analyze Details <ArrowRight size={18} className="ml-2 inline" />
                             </Button>
                           </div>
                         </div>
@@ -258,16 +253,11 @@ export function ReportHub() {
                       {reportStep === 2 && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
                           <div>
-                            <label className="block text-sm font-bold text-slate-300 mb-3">
-                              {reportType === 'url' ? 'Suspicious URL Target' : 'Sender Info & Malicious Content'}
-                            </label>
-                            <input 
-                              type="text" 
-                              value={reportTarget}
-                              onChange={(e) => setReportTarget(e.target.value)}
-                              placeholder={reportType === 'url' ? "e.g., https://vietcombank-verify.online/login" : "Phone number or exact message snippet"}
-                              className="w-full bg-dark-900/80 border border-dark-600 rounded-xl px-5 py-4 text-slate-200 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all"
-                            />
+                            <label className="block text-sm font-bold text-slate-300 mb-3">Context & Scenarion Description</label>
+                            <div className="bg-brand-500/5 border border-brand-500/20 rounded-xl p-4 mb-4">
+                              <p className="text-[10px] text-brand-400 font-bold uppercase tracking-wider mb-1">Analysis for:</p>
+                              <p className="text-xs text-slate-200 font-mono truncate">{reportTarget}</p>
+                            </div>
                           </div>
                           <div>
                             <label className="block text-sm font-bold text-slate-300 mb-3">Context & Description <span className="text-slate-500 font-normal text-xs ml-2">(Optional)</span></label>
@@ -335,11 +325,14 @@ export function ReportHub() {
             
             {/* Sidebar info */}
             <div className="space-y-6">
-              <Card className="bg-gradient-to-br from-dark-800 to-dark-900 border-dark-600 shadow-xl overflow-hidden group">
-                 <div className="absolute top-0 right-0 w-32 h-32 bg-brand-500/5 rounded-full blur-2xl"></div>
+              <Card className="bg-gradient-to-br from-dark-800 via-dark-800 to-brand-900/10 border-dark-600 shadow-2xl overflow-hidden group">
+                 <div className="absolute top-0 right-0 w-32 h-32 bg-brand-500/10 rounded-full blur-3xl group-hover:bg-brand-500/20 transition-all duration-700"></div>
                  <CardContent className="p-8 relative z-10">
-                    <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-3">
-                      <ShieldAlert className="text-brand-500" /> Why Report?
+                    <h3 className="text-xl font-bold text-white mb-8 flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-brand-500/10 flex items-center justify-center border border-brand-500/30">
+                        <ShieldAlert className="text-brand-500" size={20} />
+                      </div>
+                      Reporting Intelligence
                     </h3>
                     <ul className="space-y-5 text-sm text-slate-400">
                        <li className="flex gap-4">
