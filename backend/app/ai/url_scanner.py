@@ -99,8 +99,9 @@ async def scan_url(url: str) -> dict:
         try:
             # Preprocess
             seq = _preprocessor.preprocess(url)
-            # Reshape for model input
-            input_data = seq.astype(np.float32).reshape(1, 200, 72)
+            # seq shape is (200, 72) one-hot encoded
+            # Convert one-hot back to indices by taking argmax
+            seq_indices = np.argmax(seq, axis=1).reshape(1, 200).astype(np.int32)
             
             # [DIAGNOSTIC] In ra thông tin model để kiểm tra
             input_meta = _ort_session.get_inputs()[0]
@@ -108,7 +109,7 @@ async def scan_url(url: str) -> dict:
             
             # Run inference
             input_name = input_meta.name
-            outputs = _ort_session.run(None, {input_name: input_data})
+            outputs = _ort_session.run(None, {input_name: seq_indices})
             
             # Xử lý kết quả (đầu ra thường là xác suất 0-1)
             ai_confidence = float(outputs[0][0][0])
