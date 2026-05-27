@@ -64,6 +64,58 @@ async def scan_url_xgboost(url: str) -> dict:
     Returns: verdict, risk_level, confidence, signals
     """
     start_time = datetime.now()
+    
+    # Check whitelist first to prevent false positives on highly trusted domains
+    from urllib.parse import urlparse
+    try:
+        url_lower = url.lower().strip()
+        if not url_lower.startswith("http://") and not url_lower.startswith("https://"):
+            url_lower = "https://" + url_lower
+        
+        parsed = urlparse(url_lower)
+        host = parsed.netloc
+        if host.startswith("www."):
+            host = host[4:]
+            
+        trusted_domains = {
+            "google.com", "gmail.com", "youtube.com", "facebook.com",
+            "microsoft.com", "apple.com", "github.com", "wikipedia.org",
+            "netflix.com", "amazon.com", "linkedin.com", "twitter.com",
+            "instagram.com", "zoom.us", "yahoo.com", "gemini.google.com"
+        }
+        
+        is_trusted = False
+        if host in trusted_domains:
+            is_trusted = True
+        else:
+            for d in trusted_domains:
+                if host.endswith("." + d):
+                    is_trusted = True
+                    break
+                    
+        if is_trusted:
+            processing_time = (datetime.now() - start_time).total_seconds() * 1000
+            return {
+                "verdict": "legitimate",
+                "risk_level": "SAFE",
+                "confidence": 0.99,
+                "processing_time_ms": round(processing_time, 2),
+                "model_version": "whitelist-v1",
+                "analysis_details": {
+                    "ai_score": 0.0,
+                    "heuristic_score": 0.0,
+                    "signals": [
+                        {
+                            "name": "Trusted Whitelist",
+                            "score": 0.0,
+                            "detail": f"This URL belongs to a trusted domain ({host}) and is verified safe."
+                        }
+                    ]
+                }
+            }
+    except Exception as e:
+        logger.error(f"Whitelist check error: {e}")
+
     signals = []
     
     ai_confidence = 0.0
