@@ -56,8 +56,8 @@ export const api = {
     getReports: () => apiRequest('/admin/reports'),
     getModelMetrics: () => apiRequest('/admin/model-metrics'),
     getAuditLogs: (page = 1, action?: string) => apiRequest(`/admin/audit-logs?page=${page}${action ? `&action=${action}` : ''}`),
-    updateReportStatus: (type: string, id: number, status: string) => 
-      apiRequest(`/admin/reports/${type}/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+    updateReportStatus: (type: string, id: number, status: string, category?: string, description?: string) => 
+      apiRequest(`/admin/reports/${type}/${id}/status`, { method: 'PUT', body: JSON.stringify({ status, category, description }) }),
     getSettings: () => apiRequest('/admin/settings'),
     updateSettings: (data: any) => apiRequest('/admin/settings', { method: 'PATCH', body: JSON.stringify(data) }),
   },

@@ -56,6 +56,9 @@ async def get_scan_history(page: int = 1, limit: int = 20, db: Session = Depends
                 "verdict": r.verdict,
                 "risk_level": r.risk_level,
                 "confidence": r.confidence,
+                "model_version": r.model_version,
+                "processing_time_ms": r.processing_time_ms,
+                "analysis_details": r.analysis_details,
                 "created_at": r.created_at.isoformat() if r.created_at else None
             } for r in results
         ]
@@ -74,6 +77,55 @@ async def get_scan_stats(db: Session = Depends(get_db)):
     # Tính trung bình thời gian phản hồi (chỉ tính những dòng có giá trị hợp lệ)
     avg_latency = db.query(func.avg(ScanResult.processing_time_ms)).filter(ScanResult.processing_time_ms > 0).scalar() or 0.0
 
+    # Tính toán tọa độ bản đồ mối đe dọa thực tế
+    nodes = {
+        "hanoi": {"id": 1, "lat": 21.0285, "lng": 105.8542, "name": "Hanoi (SEA Cluster)", "intensity": "low", "count": 0, "threats": 0},
+        "tokyo": {"id": 2, "lat": 35.6762, "lng": 139.6503, "name": "Tokyo Node", "intensity": "low", "count": 0, "threats": 0},
+        "london": {"id": 3, "lat": 51.5074, "lng": -0.1278, "name": "London Proxy", "intensity": "low", "count": 0, "threats": 0},
+        "newyork": {"id": 4, "lat": 40.7128, "lng": -74.0060, "name": "NY Gateway", "intensity": "low", "count": 0, "threats": 0},
+        "sydney": {"id": 5, "lat": -33.8688, "lng": 151.2093, "name": "Sydney Hub", "intensity": "low", "count": 0, "threats": 0},
+        "moscow": {"id": 6, "lat": 55.7558, "lng": 37.6173, "name": "Moscow Relay", "intensity": "low", "count": 0, "threats": 0},
+        "saopaulo": {"id": 7, "lat": -23.5505, "lng": -46.6333, "name": "São Paulo End", "intensity": "low", "count": 0, "threats": 0},
+    }
+
+    all_scans = db.query(ScanResult).all()
+    for s in all_scans:
+        val = s.input_value.lower()
+        is_threat = s.verdict in ["phishing", "suspicious"]
+        
+        if ".vn" in val:
+            target = "hanoi"
+        elif ".jp" in val:
+            target = "tokyo"
+        elif ".uk" in val or ".eu" in val or ".fr" in val or ".de" in val:
+            target = "london"
+        elif ".ru" in val:
+            target = "moscow"
+        elif ".br" in val or ".ar" in val:
+            target = "saopaulo"
+        else:
+            h = hash(val) % 3
+            if h == 0:
+                target = "newyork"
+            elif h == 1:
+                target = "sydney"
+            else:
+                target = "hanoi"
+        
+        nodes[target]["count"] += 1
+        if is_threat:
+            nodes[target]["threats"] += 1
+
+    for k, node in nodes.items():
+        if node["threats"] > 5:
+            node["intensity"] = "high"
+        elif node["threats"] > 1:
+            node["intensity"] = "medium"
+        else:
+            node["intensity"] = "low"
+            
+    map_stats = list(nodes.values())
+
     return {
         "total_scans": total_scans,
         "phishing_scans": phishing_scans,
@@ -81,5 +133,6 @@ async def get_scan_stats(db: Session = Depends(get_db)):
         "safe_scans": safe_scans,
         "avg_latency_ms": round(avg_latency, 2),
         "status": "Active",
-        "threat_level": "CRITICAL" if phishing_scans > (total_scans * 0.2) else "ELEVATED" if phishing_scans > (total_scans * 0.05) else "NORMAL"
+        "threat_level": "CRITICAL" if phishing_scans > (total_scans * 0.2) else "ELEVATED" if phishing_scans > (total_scans * 0.05) else "NORMAL",
+        "map_stats": map_stats
     }

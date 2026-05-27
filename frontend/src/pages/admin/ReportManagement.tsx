@@ -11,6 +11,19 @@ export function ReportManagement() {
   const [activeTab, setActiveTab] = useState<'pending' | 'processed'>('pending');
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  const [editCategory, setEditCategory] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+
+  useEffect(() => {
+    if (selectedReport) {
+      setEditCategory(selectedReport.category || 'phishing');
+      setEditDescription(selectedReport.description || '');
+    } else {
+      setEditCategory('');
+      setEditDescription('');
+    }
+  }, [selectedReport]);
+
   const fetchReports = async () => {
     setLoading(true);
     setFetchError(null);
@@ -31,13 +44,29 @@ export function ReportManagement() {
 
   const handleUpdateStatus = async (type: string, id: number, status: string) => {
     try {
-      await api.admin.updateReportStatus(type, id, status);
+      await api.admin.updateReportStatus(
+        type, 
+        id, 
+        status, 
+        type === 'scam_report' ? editCategory : undefined, 
+        type === 'scam_report' ? editDescription : undefined
+      );
       // Update local state
       setReports(prev => prev.map(r => 
-        (r.type === type && r.id === id) ? { ...r, status } : r
+        (r.type === type && r.id === id) ? { 
+          ...r, 
+          status,
+          category: type === 'scam_report' ? editCategory : r.category,
+          description: type === 'scam_report' ? editDescription : r.description
+        } : r
       ));
       if (selectedReport && selectedReport.id === id && selectedReport.type === type) {
-        setSelectedReport({ ...selectedReport, status });
+        setSelectedReport({ 
+          ...selectedReport, 
+          status,
+          category: type === 'scam_report' ? editCategory : selectedReport.category,
+          description: type === 'scam_report' ? editDescription : selectedReport.description
+        });
       }
     } catch (e) {
       console.error('Failed to update status', e);
@@ -180,17 +209,49 @@ export function ReportManagement() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1 block">Category</label>
-                    <div className="text-sm text-slate-300">{selectedReport.category}</div>
-                  </div>
+                  {selectedReport.type === 'scam_report' ? (
+                    <>
+                      <div>
+                        <label className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1 block">Threat Classification</label>
+                        <select 
+                          value={editCategory}
+                          onChange={(e) => setEditCategory(e.target.value)}
+                          className="w-full bg-dark-900 border border-dark-700 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-brand-500 transition-all cursor-pointer"
+                        >
+                          <option value="phishing">Phishing / Credential Theft</option>
+                          <option value="impersonation">Brand/Person Impersonation</option>
+                          <option value="malware">Malware / Virus Distribution</option>
+                          <option value="fraud">Financial Fraud / Fake Store</option>
+                          <option value="other">Other Suspicious Activity</option>
+                        </select>
+                      </div>
 
-                  <div>
-                    <label className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1 block">Description / Reason</label>
-                    <div className="bg-dark-900 border border-dark-700 rounded-lg p-3 text-sm text-slate-300 min-h-[80px]">
-                      {selectedReport.description || <span className="text-slate-600 italic">No description provided.</span>}
-                    </div>
-                  </div>
+                      <div>
+                        <label className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1 block">Description</label>
+                        <textarea 
+                          value={editDescription}
+                          onChange={(e) => setEditDescription(e.target.value)}
+                          rows={4}
+                          className="w-full bg-dark-900 border border-dark-700 rounded-lg p-3 text-sm text-slate-200 outline-none focus:border-brand-500 transition-all resize-none custom-scrollbar"
+                          placeholder="Add detail description for this scam..."
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1 block">Category</label>
+                        <div className="text-sm text-slate-300">{selectedReport.category}</div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1 block">Description / Reason</label>
+                        <div className="bg-dark-900 border border-dark-700 rounded-lg p-3 text-sm text-slate-300 min-h-[80px]">
+                          {selectedReport.description || <span className="text-slate-600 italic">No description provided.</span>}
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   {selectedReport.evidence_url && (
                     <div>
