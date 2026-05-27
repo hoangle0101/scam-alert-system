@@ -35,7 +35,7 @@ export function CommunityFeed() {
 
   // New Post Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newPost, setNewPost] = useState({ title: '', content: '', scam_type: 'PHISHING', evidence_url: '' });
+  const [newPost, setNewPost] = useState({ title: '', content: '', scam_type: 'PHISHING', evidence_url: '', image_url: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchPosts = async () => {
@@ -129,7 +129,7 @@ export function CommunityFeed() {
       await api.community.createPost(newPost);
       setToast({ message: 'Intel shared successfully!', type: 'success' });
       setIsModalOpen(false);
-      setNewPost({ title: '', content: '', scam_type: 'PHISHING', evidence_url: '' });
+      setNewPost({ title: '', content: '', scam_type: 'PHISHING', evidence_url: '', image_url: '' });
       fetchPosts(); // Reload posts
     } catch (err: any) {
       setToast({ message: err.message || 'Failed to submit post', type: 'error' });
@@ -191,6 +191,15 @@ export function CommunityFeed() {
                   value={newPost.evidence_url} onChange={e => setNewPost({...newPost, evidence_url: e.target.value})}
                   className="w-full bg-dark-900 border border-dark-600 rounded-lg p-3 text-white focus:border-brand-500 outline-none" 
                   placeholder="https://..."
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Image / Screenshot URL (Optional)</label>
+                <input 
+                  type="text" 
+                  value={newPost.image_url} onChange={e => setNewPost({...newPost, image_url: e.target.value})}
+                  className="w-full bg-dark-900 border border-dark-600 rounded-lg p-3 text-white focus:border-brand-500 outline-none" 
+                  placeholder="https://images.unsplash.com/..."
                 />
               </div>
               <Button onClick={submitNewPost} disabled={isSubmitting} className="w-full bg-brand-600 hover:bg-brand-500 text-white font-bold py-3 rounded-xl mt-4">
@@ -259,7 +268,7 @@ export function CommunityFeed() {
             ) : (
               posts.map((post) => (
                 <div key={post.id} className="space-y-2">
-                  <Card className="bg-dark-800/80 hover:bg-dark-800 transition-colors border-dark-600">
+                  <Card className="bg-dark-800/80 hover:bg-dark-800 border-dark-600 hover:border-brand-500/30 hover:shadow-lg hover:shadow-brand-500/5 transition-all duration-300 group/card">
                     <CardContent className="p-5 flex gap-5">
                       {/* Voting */}
                       <div className="flex flex-col items-center gap-1 shrink-0">
@@ -269,30 +278,43 @@ export function CommunityFeed() {
                       </div>
                       
                       {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-3 mb-2">
-                          <span className="text-[10px] font-bold text-brand-400 bg-brand-500/10 border border-brand-500/20 px-2 py-0.5 rounded uppercase">{post.scam_type || 'GENERAL'}</span>
-                          <span className="text-[10px] text-slate-500">•</span>
-                          <span className="text-[10px] text-slate-400">Posted by <span className="text-slate-200 font-bold">{post.author_name}</span></span>
-                          <span className="text-[10px] text-slate-500">•</span>
-                          <span className="text-[10px] text-slate-500">{new Date(post.created_at).toLocaleString()}</span>
+                      <div className="flex-1 min-w-0 flex flex-col md:flex-row gap-5">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-3 mb-2">
+                            <span className="text-[10px] font-bold text-brand-400 bg-brand-500/10 border border-brand-500/20 px-2 py-0.5 rounded uppercase tracking-wider">{post.scam_type || 'GENERAL'}</span>
+                            <span className="text-[10px] text-slate-500">•</span>
+                            <span className="text-[10px] text-slate-400">Posted by <span className="text-slate-200 font-bold">{post.author_name}</span></span>
+                            <span className="text-[10px] text-slate-500">•</span>
+                            <span className="text-[10px] text-slate-500">{new Date(post.created_at).toLocaleString()}</span>
+                          </div>
+                          <h3 className="text-lg font-bold text-slate-200 mb-2 truncate group-hover/card:text-brand-400 transition-colors">{post.title}</h3>
+                          <p className="text-sm text-slate-400 mb-4 whitespace-pre-wrap">{post.content}</p>
+                          
+                          {post.evidence_url && (
+                            <div className="mb-4">
+                              <a href={post.evidence_url} target="_blank" rel="noopener noreferrer" className="text-xs font-mono text-blue-400 hover:underline bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20 inline-block truncate max-w-full">
+                                Evidence: {post.evidence_url}
+                              </a>
+                            </div>
+                          )}
+
+                          <div className="flex items-center gap-6 mt-auto">
+                            <button onClick={() => toggleComments(post.id)} className="flex items-center gap-2 text-xs text-slate-400 hover:text-white font-mono bg-dark-900 px-3 py-1.5 rounded transition-colors border border-dark-600 hover:border-brand-500/50">
+                              <MessageSquare size={14} /> {post.comment_count} REPLIES
+                            </button>
+                          </div>
                         </div>
-                        <h3 className="text-lg font-bold text-slate-200 mb-2 truncate">{post.title}</h3>
-                        <p className="text-sm text-slate-400 mb-4 whitespace-pre-wrap">{post.content}</p>
-                        
-                        {post.evidence_url && (
-                          <div className="mb-4">
-                            <a href={post.evidence_url} target="_blank" rel="noopener noreferrer" className="text-xs font-mono text-blue-400 hover:underline bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20 inline-block truncate max-w-full">
-                              Evidence: {post.evidence_url}
-                            </a>
+
+                        {post.image_url && (
+                          <div className="md:w-48 w-full h-32 md:h-auto rounded-xl overflow-hidden border border-dark-700/80 shrink-0 relative group/img">
+                            <img 
+                              src={post.image_url} 
+                              alt="Scan Evidence" 
+                              className="w-full h-full object-cover opacity-85 group-hover/img:scale-105 group-hover/img:opacity-100 transition-all duration-500"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-dark-900/40 to-transparent pointer-events-none"></div>
                           </div>
                         )}
-
-                        <div className="flex items-center gap-6">
-                          <button onClick={() => toggleComments(post.id)} className="flex items-center gap-2 text-xs text-slate-400 hover:text-white font-mono bg-dark-900 px-3 py-1.5 rounded transition-colors border border-dark-600 hover:border-brand-500/50">
-                            <MessageSquare size={14} /> {post.comment_count} REPLIES
-                          </button>
-                        </div>
                       </div>
                     </CardContent>
                   </Card>

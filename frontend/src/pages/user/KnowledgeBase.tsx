@@ -91,7 +91,14 @@ export function KnowledgeBase() {
                   {/* Article Hero */}
                   <div className="space-y-4">
                     <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                      <span className="bg-brand-500/10 text-brand-400 border border-brand-500/20 px-2 py-1 rounded">{fullArticle.category}</span>
+                      <span className={`border px-2 py-1 rounded ${
+                        fullArticle.category === 'PHISHING' ? 'bg-accent-red/10 text-accent-red border-accent-red/20' :
+                        fullArticle.category === 'SOCIAL' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
+                        'bg-brand-500/10 text-brand-400 border-brand-500/20'
+                      }`}>
+                        {fullArticle.category === 'PHISHING' ? 'Phishing Defense' :
+                         fullArticle.category === 'SOCIAL' ? 'Social Engineering' : 'General Security'}
+                      </span>
                       <span className="flex items-center gap-1"><Clock size={12} /> {fullArticle.read_time_minutes} min read</span>
                       <span className="flex items-center gap-1"><Eye size={12} /> {fullArticle.view_count} views</span>
                       <span className="text-brand-500">{fullArticle.difficulty} Level</span>
@@ -210,8 +217,13 @@ export function KnowledgeBase() {
                             alt={article.title}
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-dark-900 to-transparent"></div>
-                          <div className="absolute top-4 left-4 px-2 py-1 rounded bg-dark-950/80 backdrop-blur-md border border-dark-600 text-[9px] font-bold text-brand-400 uppercase tracking-widest">
-                             {article.category}
+                          <div className={`absolute top-4 left-4 px-2 py-1 rounded bg-dark-950/80 backdrop-blur-md border text-[9px] font-bold uppercase tracking-widest ${
+                            article.category === 'PHISHING' ? 'text-accent-red border-accent-red/20' :
+                            article.category === 'SOCIAL' ? 'text-orange-400 border-orange-500/20' :
+                            'text-brand-400 border-brand-500/20'
+                          }`}>
+                             {article.category === 'PHISHING' ? 'Phishing' :
+                              article.category === 'SOCIAL' ? 'Social Eng' : 'General'}
                           </div>
                           <div className="absolute bottom-3 right-3 flex items-center gap-2 text-[10px] font-bold text-slate-300 bg-dark-950/80 backdrop-blur-md px-2 py-1 rounded border border-dark-600">
                              <Eye size={12} className="text-brand-500" /> {article.view_count}

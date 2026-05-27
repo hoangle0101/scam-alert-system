@@ -34,6 +34,8 @@ class DashboardStats(BaseModel):
     scan_by_verdict: dict
     scan_by_type: dict
     recent_scans: list[ScanResultResponse]
+    traffic_stats: list[dict]
+    map_stats: list[dict]
 
 
 class UserAdminResponse(BaseModel):
@@ -133,6 +135,82 @@ def admin_dashboard(
         .all()
     )
 
+    # 1. Traffic Stats (last 7 hours)
+    now = datetime.now(timezone.utc)
+    traffic_stats = []
+    for i in range(6, -1, -1):
+        start_hour = now - timedelta(hours=i)
+        hour_str = start_hour.strftime("%H:00")
+        
+        h_start = start_hour.replace(minute=0, second=0, microsecond=0)
+        h_end = h_start + timedelta(hours=1)
+        
+        requests = db.query(ScanResult).filter(
+            ScanResult.created_at >= h_start,
+            ScanResult.created_at < h_end
+        ).count()
+        
+        threats = db.query(ScanResult).filter(
+            ScanResult.created_at >= h_start,
+            ScanResult.created_at < h_end,
+            ScanResult.verdict.in_(["phishing", "suspicious"])
+        ).count()
+        
+        traffic_stats.append({
+            "time": hour_str,
+            "requests": requests,
+            "threats": threats
+        })
+
+    # 2. Map Stats
+    nodes = {
+        "hanoi": {"id": 1, "lat": 21.0285, "lng": 105.8542, "name": "Hanoi (SEA Cluster)", "intensity": "low", "count": 0, "threats": 0},
+        "tokyo": {"id": 2, "lat": 35.6762, "lng": 139.6503, "name": "Tokyo Node", "intensity": "low", "count": 0, "threats": 0},
+        "london": {"id": 3, "lat": 51.5074, "lng": -0.1278, "name": "London Proxy", "intensity": "low", "count": 0, "threats": 0},
+        "newyork": {"id": 4, "lat": 40.7128, "lng": -74.0060, "name": "NY Gateway", "intensity": "low", "count": 0, "threats": 0},
+        "sydney": {"id": 5, "lat": -33.8688, "lng": 151.2093, "name": "Sydney Hub", "intensity": "low", "count": 0, "threats": 0},
+        "moscow": {"id": 6, "lat": 55.7558, "lng": 37.6173, "name": "Moscow Relay", "intensity": "low", "count": 0, "threats": 0},
+        "saopaulo": {"id": 7, "lat": -23.5505, "lng": -46.6333, "name": "São Paulo End", "intensity": "low", "count": 0, "threats": 0},
+    }
+
+    all_scans = db.query(ScanResult).all()
+    for s in all_scans:
+        val = s.input_value.lower()
+        is_threat = s.verdict in ["phishing", "suspicious"]
+        
+        if ".vn" in val:
+            target = "hanoi"
+        elif ".jp" in val:
+            target = "tokyo"
+        elif ".uk" in val or ".eu" in val or ".fr" in val or ".de" in val:
+            target = "london"
+        elif ".ru" in val:
+            target = "moscow"
+        elif ".br" in val or ".ar" in val:
+            target = "saopaulo"
+        else:
+            h = hash(val) % 3
+            if h == 0:
+                target = "newyork"
+            elif h == 1:
+                target = "sydney"
+            else:
+                target = "hanoi"
+        
+        nodes[target]["count"] += 1
+        if is_threat:
+            nodes[target]["threats"] += 1
+
+    for k, node in nodes.items():
+        if node["threats"] > 5:
+            node["intensity"] = "high"
+        elif node["threats"] > 1:
+            node["intensity"] = "medium"
+        else:
+            node["intensity"] = "low"
+            
+    map_stats = list(nodes.values())
+
     return DashboardStats(
         total_users=total_users,
         active_users=active_users,
@@ -144,6 +222,8 @@ def admin_dashboard(
         scan_by_verdict=scan_by_verdict,
         scan_by_type=scan_by_type,
         recent_scans=[ScanResultResponse.model_validate(s) for s in recent],
+        traffic_stats=traffic_stats,
+        map_stats=map_stats,
     )
 
 
@@ -369,6 +449,8 @@ def list_reports(
 
 class UpdateReportStatusRequest(BaseModel):
     status: str
+    category: str | None = None
+    description: str | None = None
 
 @router.put("/reports/{report_type}/{id}/status")
 def update_report_status(
@@ -384,10 +466,10 @@ def update_report_status(
         if not report:
             raise HTTPException(status_code=404, detail="Report not found")
         report.status = data.status
-        # Simulate blacklisting if approved
-        if data.status == "approved":
-            # Add to some blacklist table conceptually
-            pass
+        if data.category is not None:
+            report.scam_category = data.category
+        if data.description is not None:
+            report.description = data.description
     elif report_type == "appeal":
         appeal = db.query(FalsePositiveAppeal).filter(FalsePositiveAppeal.id == id).first()
         if not appeal:

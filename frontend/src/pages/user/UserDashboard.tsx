@@ -5,6 +5,7 @@ import { Button } from '../../components/Button';
 import { Shield, Search, AlertTriangle, CheckCircle, ArrowRight, ShieldCheck, Zap, Settings, BookOpen, Activity, Globe, Clock, XCircle, Download, Copy, ShieldAlert } from 'lucide-react';
 import { api } from '../../services/api';
 import { GeographicMap } from '../../components/GeographicMap';
+import { ScanDetailsModal } from '../../components/ScanDetailsModal';
 
 // Toast Component
 const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 'error' | 'warning' | 'info', onClose: () => void }) => {
@@ -47,6 +48,7 @@ export function UserDashboard() {
   const [inputValue, setInputValue] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'warning' | 'info'} | null>(null);
+  const [selectedScan, setSelectedScan] = useState<any | null>(null);
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -277,7 +279,11 @@ export function UserDashboard() {
                         ))
                       ) : recentAlerts.length > 0 ? (
                         recentAlerts.map((alert: any) => (
-                          <tr key={alert.id} className="hover:bg-dark-700/30 transition-colors group">
+                          <tr 
+                            key={alert.id} 
+                            className="hover:bg-dark-700/30 transition-colors group cursor-pointer"
+                            onClick={() => setSelectedScan(alert)}
+                          >
                             <td className="p-4 w-16">
                               <div className="w-8 h-8 rounded-lg bg-dark-900 border border-dark-600 flex items-center justify-center text-slate-400 group-hover:text-brand-500 transition-colors">
                                 <Globe size={14} />
@@ -377,7 +383,7 @@ export function UserDashboard() {
                 </h3>
              </div>
              <div className="flex-1 relative bg-dark-900">
-                <GeographicMap />
+                <GeographicMap data={stats?.map_stats} />
                 <div className="absolute bottom-4 left-4 right-4 bg-dark-900/90 backdrop-blur p-4 rounded-xl border border-dark-600 z-[500] shadow-lg">
                    <div className="flex justify-between items-center mb-2">
                       <span className="text-xs text-slate-400">Current Threat Level</span>
@@ -474,6 +480,9 @@ export function UserDashboard() {
 
         </div>
       </div>
+      {selectedScan && (
+        <ScanDetailsModal scan={selectedScan} onClose={() => setSelectedScan(null)} />
+      )}
     </div>
   );
 }
