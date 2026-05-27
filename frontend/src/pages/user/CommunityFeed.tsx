@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '../../components/Card';
 import { Button } from '../../components/Button';
-import { AlertTriangle, MessageSquare, ChevronUp, ChevronDown, CheckCircle2, ShieldCheck, Share2, ArrowRight, ShieldAlert, Send, Plus, X, Activity, XCircle } from 'lucide-react';
+import { MessageSquare, ChevronUp, ChevronDown, ShieldCheck, ShieldAlert, Send, Plus, X, Activity } from 'lucide-react';
 import { api } from '../../services/api';
 
 // Toast Component
@@ -35,7 +35,7 @@ export function CommunityFeed() {
 
   // New Post Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newPost, setNewPost] = useState({ title: '', content: '', scam_type: 'SMS SCAMS', evidence_url: '' });
+  const [newPost, setNewPost] = useState({ title: '', content: '', scam_type: 'PHISHING', evidence_url: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchPosts = async () => {
@@ -129,7 +129,7 @@ export function CommunityFeed() {
       await api.community.createPost(newPost);
       setToast({ message: 'Intel shared successfully!', type: 'success' });
       setIsModalOpen(false);
-      setNewPost({ title: '', content: '', scam_type: 'SMS SCAMS', evidence_url: '' });
+      setNewPost({ title: '', content: '', scam_type: 'PHISHING', evidence_url: '' });
       fetchPosts(); // Reload posts
     } catch (err: any) {
       setToast({ message: err.message || 'Failed to submit post', type: 'error' });
@@ -168,8 +168,8 @@ export function CommunityFeed() {
                   value={newPost.scam_type} onChange={e => setNewPost({...newPost, scam_type: e.target.value})}
                   className="w-full bg-dark-900 border border-dark-600 rounded-lg p-3 text-white focus:border-brand-500 outline-none"
                 >
-                  <option value="SMS SCAMS">SMS Scams</option>
-                  <option value="PHISHING">Phishing URLs</option>
+                  <option value="PHISHING">Domain Threats</option>
+                  <option value="LINK_SCAM">Link-based Scams</option>
                   <option value="DEEPFAKES">Deepfakes / AI</option>
                   <option value="PHONE SCAMS">Phone / Call Scams</option>
                   <option value="OTHER">Other</option>
@@ -224,9 +224,9 @@ export function CommunityFeed() {
                 </span>
                 <span className="text-xs font-mono text-slate-500 uppercase">VERIFIED BY ADMINS</span>
               </div>
-              <h3 className="text-2xl font-bold text-slate-100 mb-3">"Kinetic Vault" Phishing Protocol via SMS</h3>
+              <h3 className="text-2xl font-bold text-slate-100 mb-3">"Kinetic Vault" Phishing Protocol via Redirects</h3>
               <p className="text-slate-400 text-sm leading-relaxed mb-8 max-w-xl">
-                A sophisticated campaign mimicking official system alerts. Users report receiving SMS containing links to a cloned login portal. Do not click.
+                A sophisticated campaign mimicking official system alerts. Users report receiving malicious links via redirects and ads. Do not click.
               </p>
             </CardContent>
           </Card>

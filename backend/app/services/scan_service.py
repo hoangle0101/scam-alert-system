@@ -5,19 +5,22 @@ from app.models.scan import ScanResult
 from app.models.user import User
 from app.models.audit import AuditLog
 from app.ai.url_scanner import scan_url as ai_scan_url
-from app.ai.text_scanner import scan_message as ai_scan_message
+from app.ai.xgboost_scanner import scan_url_xgboost
 
 logger = logging.getLogger(__name__)
 
 class ScanService:
     @staticmethod
-    async def scan_url(db: Session, url: str, user: User = None) -> dict:
+    async def scan_url(db: Session, url: str, user: User = None, model_type: str = "cnn") -> dict:
         """
         Orchestrate URL scanning: AI analysis + Persistence + Audit logging.
         """
         try:
-            # 1. Thực hiện quét AI
-            ai_result = await ai_scan_url(url)
+            # 1. Thực hiện quét AI tùy theo model
+            if model_type == "xgboost":
+                ai_result = await scan_url_xgboost(url)
+            else:
+                ai_result = await ai_scan_url(url)
             
             # Đảm bảo các giá trị không bị None trước khi lưu DB
             verdict = ai_result.get("verdict", "unknown")
@@ -45,7 +48,7 @@ class ScanService:
                 action="scan.url",
                 resource="url",
                 resource_id=None,
-                details={"url": url, "verdict": verdict},
+                details={"url": url, "model": model_type, "verdict": verdict},
                 status="success"
             )
             db.add(audit)
@@ -69,54 +72,4 @@ class ScanService:
                 "error": str(e)
             }
 
-    @staticmethod
-    async def scan_message(db: Session, content: str, user: User = None) -> dict:
-        """
-        Orchestrate Message/SMS scanning.
-        """
-        try:
-            # 1. AI Analysis
-            ai_result = await ai_scan_message(content)
-            
-            verdict = ai_result.get("verdict", "unknown")
-            risk_level = ai_result.get("risk_level", "UNKNOWN")
-            confidence = ai_result.get("confidence", 0.0)
-            
-            # 2. Save to DB
-            db_result = ScanResult(
-                user_id=user.id if user else None,
-                scan_type="message",
-                input_value=content[:500], # Truncate for DB storage
-                verdict=str(verdict),
-                risk_level=str(risk_level),
-                confidence=float(confidence),
-                processing_time_ms=float(ai_result.get("processing_time_ms", 0.0)),
-                model_version=str(ai_result.get("model_version", "v1")),
-                analysis_details=ai_result.get("analysis_details", {}),
-                is_false_positive=False
-            )
-            db.add(db_result)
-            
-            # 3. Audit Log
-            audit = AuditLog(
-                user_id=user.id if user else None,
-                action="scan.message",
-                resource="message",
-                resource_id=None,
-                details={"preview": content[:50], "verdict": verdict},
-                status="success"
-            )
-            db.add(audit)
-            
-            db.commit()
-            return ai_result
-
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Message Scan Service Error: {e}")
-            return {
-                "verdict": "error",
-                "risk_level": "UNKNOWN",
-                "confidence": 0.0,
-                "error": str(e)
-            }
+    # Removed scan_message method

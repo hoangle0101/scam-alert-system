@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/Card';
 import { Button } from '../../components/Button';
-import { Shield, Search, Users, AlertTriangle, CheckCircle, ArrowRight, ShieldCheck, Zap, Settings, BookOpen, MessageSquare, Activity, Globe, Clock, XCircle, ChevronRight, FileText, Download, Copy, ShieldAlert } from 'lucide-react';
+import { Shield, Search, AlertTriangle, CheckCircle, ArrowRight, ShieldCheck, Zap, Settings, BookOpen, Activity, Globe, Clock, XCircle, Download, Copy, ShieldAlert } from 'lucide-react';
 import { api } from '../../services/api';
 import { GeographicMap } from '../../components/GeographicMap';
 
@@ -43,7 +43,7 @@ export function UserDashboard() {
   const [myReports, setMyReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
-  const [activeTab, setActiveTab] = useState<'url' | 'message' | 'file'>('url');
+  const [activeTab, setActiveTab] = useState<'cnn' | 'xgboost'>('cnn');
   const [inputValue, setInputValue] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'warning' | 'info'} | null>(null);
@@ -78,12 +78,7 @@ export function UserDashboard() {
     if (!inputValue.trim()) return;
     setIsScanning(true);
     try {
-      let result;
-      if (activeTab === 'url') {
-        result = await api.scanner.scanUrl(inputValue);
-      } else if (activeTab === 'message') {
-        result = await api.scanner.scanMessage(inputValue);
-      }
+      const result = await api.scanner.scanUrl(inputValue, activeTab);
       
       setInputValue('');
       
@@ -201,22 +196,16 @@ export function UserDashboard() {
             <CardContent className="p-0">
               <div className="flex border-b border-dark-600 bg-dark-900/50">
                 <button 
-                  onClick={() => setActiveTab('url')}
-                  className={`flex-1 py-4 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'url' ? 'text-brand-500 border-b-2 border-brand-500 bg-dark-800' : 'text-slate-500 hover:text-slate-300'}`}
+                  onClick={() => setActiveTab('cnn')}
+                  className={`flex-1 py-4 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'cnn' ? 'text-brand-500 border-b-2 border-brand-500 bg-brand-500/5' : 'text-slate-500 hover:text-slate-300'}`}
                 >
-                  <Globe size={18} /> URL / Link
+                  <Globe size={18} /> 1D-CNN Model
                 </button>
                 <button 
-                  onClick={() => setActiveTab('message')}
-                  className={`flex-1 py-4 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'message' ? 'text-brand-500 border-b-2 border-brand-500 bg-dark-800' : 'text-slate-500 hover:text-slate-300'}`}
+                  onClick={() => setActiveTab('xgboost')}
+                  className={`flex-1 py-4 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'xgboost' ? 'text-green-500 border-b-2 border-green-500 bg-green-500/5' : 'text-slate-500 hover:text-slate-300'}`}
                 >
-                  <MessageSquare size={18} /> SMS / Email
-                </button>
-                <button 
-                  onClick={() => { setActiveTab('file'); setToast({message: 'Tính năng quét ảnh/tệp đang được phát triển', type: 'info'}); }}
-                  className={`flex-1 py-4 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'file' ? 'text-brand-500 border-b-2 border-brand-500 bg-dark-800' : 'text-slate-500 hover:text-slate-300'}`}
-                >
-                  <FileText size={18} /> File / Image
+                  <Search size={18} /> XGBoost Model
                 </button>
               </div>
               <div className="p-8">
@@ -230,16 +219,20 @@ export function UserDashboard() {
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleQuickScan()}
-                      placeholder={activeTab === 'url' ? "Paste a suspicious URL here..." : activeTab === 'message' ? "Paste SMS or Email content..." : "Upload feature coming soon..."}
-                      disabled={activeTab === 'file' || isScanning}
-                      className="w-full bg-dark-900 border border-dark-600 rounded-xl py-4 pl-12 pr-4 text-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all outline-none disabled:opacity-50"
+                      placeholder="Paste a suspicious URL here..."
+                      disabled={isScanning}
+                      className={`w-full bg-dark-900 border border-dark-600 rounded-xl py-4 pl-12 pr-4 text-slate-200 transition-all outline-none disabled:opacity-50 focus:ring-1 ${
+                        activeTab === 'cnn' ? 'focus:border-brand-500 focus:ring-brand-500' : 'focus:border-green-500 focus:ring-green-500'
+                      }`}
                     />
                   </div>
                   <Button 
                     variant="primary" 
-                    className="px-8 py-4 rounded-xl font-bold shadow-lg shadow-brand-500/20 whitespace-nowrap min-w-[160px]"
+                    className={`px-8 py-4 rounded-xl font-bold shadow-lg whitespace-nowrap min-w-[160px] text-white ${
+                      activeTab === 'cnn' ? 'bg-brand-600 hover:bg-brand-500 shadow-brand-500/20' : 'bg-green-600 hover:bg-green-500 shadow-green-500/20'
+                    }`}
                     onClick={handleQuickScan}
-                    disabled={activeTab === 'file' || !inputValue.trim() || isScanning}
+                    disabled={!inputValue.trim() || isScanning}
                   >
                     {isScanning ? (
                       <span className="flex items-center gap-2"><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Scanning...</span>
@@ -287,7 +280,7 @@ export function UserDashboard() {
                           <tr key={alert.id} className="hover:bg-dark-700/30 transition-colors group">
                             <td className="p-4 w-16">
                               <div className="w-8 h-8 rounded-lg bg-dark-900 border border-dark-600 flex items-center justify-center text-slate-400 group-hover:text-brand-500 transition-colors">
-                                {alert.scan_type === 'url' ? <Globe size={14} /> : <MessageSquare size={14} />}
+                                <Globe size={14} />
                               </div>
                             </td>
                             <td className="p-4">

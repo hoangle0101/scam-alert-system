@@ -45,8 +45,7 @@ export const api = {
     getMe: () => apiRequest('/auth/me'),
   },
   scanner: {
-    scanUrl: (url: string) => apiRequest('/scan/url', { method: 'POST', body: JSON.stringify({ url }) }),
-    scanMessage: (content: string) => apiRequest('/scan/message', { method: 'POST', body: JSON.stringify({ content }) }),
+    scanUrl: (url: string, modelType: 'cnn' | 'xgboost' = 'cnn') => apiRequest('/scan/url', { method: 'POST', body: JSON.stringify({ url, model_type: modelType }) }),
     getHistory: (page: number = 1, limit: number = 20) => apiRequest(`/scan/history?page=${page}&limit=${limit}`),
     getStats: () => apiRequest('/scan/stats'),
   },
