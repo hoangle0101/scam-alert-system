@@ -6,6 +6,7 @@ import { GeographicMap } from '../../components/GeographicMap';
 import { ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Users, ShieldAlert, FileSearch, MessageSquare, Download, RefreshCw, Cpu, Clock, Server, AlertTriangle } from 'lucide-react';
 import { api } from '../../services/api';
+import { ScanDetailsModal } from '../../components/ScanDetailsModal';
 
 export function AdminDashboard() {
   const navigate = useNavigate();
@@ -14,17 +15,10 @@ export function AdminDashboard() {
   const [pendingReports, setPendingReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedScan, setSelectedScan] = useState<any | null>(null);
 
-  // Giả lập dữ liệu traffic thời gian thực cho biểu đồ Line Chart
-  const [trafficData] = useState([
-    { time: '10:00', requests: 120, threats: 15 },
-    { time: '10:05', requests: 250, threats: 30 },
-    { time: '10:10', requests: 180, threats: 20 },
-    { time: '10:15', requests: 300, threats: 45 },
-    { time: '10:20', requests: 280, threats: 40 },
-    { time: '10:25', requests: 420, threats: 85 },
-    { time: '10:30', requests: 350, threats: 50 },
-  ]);
+  // Real traffic data from API stats
+  const trafficData = stats?.traffic_stats || [];
 
   const fetchDashboardData = async (showRefreshAnimation = false) => {
     if (showRefreshAnimation) setIsRefreshing(true);
@@ -146,7 +140,7 @@ export function AdminDashboard() {
           </CardHeader>
           <CardContent className="p-0 flex-1 min-h-[400px] relative bg-dark-900 overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-brand-900/10 via-dark-900 to-dark-900 pointer-events-none"></div>
-            <GeographicMap />
+            <GeographicMap data={stats?.map_stats} />
           </CardContent>
         </Card>
 
@@ -265,7 +259,11 @@ export function AdminDashboard() {
                     <tr><td colSpan={5} className="p-8 text-center text-slate-500 text-sm">Loading feed...</td></tr>
                   ) : stats?.recent_scans?.length > 0 ? (
                     stats.recent_scans.map((scan: any) => (
-                      <tr key={scan.id} className="hover:bg-dark-900/50 transition-colors group border-b border-dark-700/30 last:border-0">
+                      <tr 
+                        key={scan.id} 
+                        className="hover:bg-dark-900/50 transition-colors group border-b border-dark-700/30 last:border-0 cursor-pointer"
+                        onClick={() => setSelectedScan(scan)}
+                      >
                         <td className="px-6 py-4">
                           <div className="text-xs font-bold text-slate-200 truncate max-w-[250px] font-mono">{scan.input_value}</div>
                         </td>
@@ -355,7 +353,9 @@ export function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
-
+      {selectedScan && (
+        <ScanDetailsModal scan={selectedScan} onClose={() => setSelectedScan(null)} />
+      )}
     </div>
   );
 }

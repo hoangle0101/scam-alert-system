@@ -4,10 +4,23 @@ from sqlalchemy.orm import Session
 from app.models.scan import ScanResult
 from app.models.user import User
 from app.models.audit import AuditLog
+from app.models.report import ScamReport
 from app.ai.url_scanner import scan_url as ai_scan_url
 from app.ai.xgboost_scanner import scan_url_xgboost
 
 logger = logging.getLogger(__name__)
+
+def normalize_url(u: str) -> str:
+    u = u.strip().lower()
+    if u.startswith("https://"):
+        u = u[8:]
+    elif u.startswith("http://"):
+        u = u[7:]
+    if u.startswith("www."):
+        u = u[4:]
+    if u.endswith("/"):
+        u = u[:-1]
+    return u
 
 class ScanService:
     @staticmethod
@@ -16,11 +29,40 @@ class ScanService:
         Orchestrate URL scanning: AI analysis + Persistence + Audit logging.
         """
         try:
-            # 1. Thực hiện quét AI tùy theo model
-            if model_type == "xgboost":
-                ai_result = await scan_url_xgboost(url)
+            # Check if this URL matches any approved scam report
+            normalized_scan_url = normalize_url(url)
+            approved_reports = db.query(ScamReport).filter(ScamReport.status == "approved").all()
+            matching_report = None
+            for r in approved_reports:
+                if r.target_value and normalize_url(r.target_value) == normalized_scan_url:
+                    matching_report = r
+                    break
+
+            if matching_report:
+                ai_result = {
+                    "verdict": "phishing",
+                    "risk_level": "CRITICAL",
+                    "confidence": 1.0,
+                    "processing_time_ms": 0.0,
+                    "model_version": "community-verified",
+                    "analysis_details": {
+                        "ai_score": 1.0,
+                        "heuristic_score": 1.0,
+                        "signals": [
+                            {
+                                "name": "Community Blocklist",
+                                "score": 1.0,
+                                "detail": f"This URL has been verified as dangerous by security administrators. Category: {matching_report.scam_category}. Description: {matching_report.description or 'No description'}"
+                            }
+                        ]
+                    }
+                }
             else:
-                ai_result = await ai_scan_url(url)
+                # 1. Thực hiện quét AI tùy theo model
+                if model_type == "xgboost":
+                    ai_result = await scan_url_xgboost(url)
+                else:
+                    ai_result = await ai_scan_url(url)
             
             # Đảm bảo các giá trị không bị None trước khi lưu DB
             verdict = ai_result.get("verdict", "unknown")

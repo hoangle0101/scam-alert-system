@@ -21,8 +21,9 @@ const THREAT_DATA = [
   { id: 7, lat: -23.5505, lng: -46.6333, name: 'São Paulo End', intensity: 'low', count: 300 },
 ];
 
-export function GeographicMap() {
+export function GeographicMap({ data }: { data?: any[] }) {
   const [activePings, setActivePings] = useState<number[]>([]);
+  const displayData = data && data.length > 0 ? data : THREAT_DATA;
 
   // Effect simulating real-time cyber attacks
   useEffect(() => {
@@ -31,14 +32,14 @@ export function GeographicMap() {
       const numPings = Math.floor(Math.random() * 3) + 1;
       const newPings: number[] = [];
       for (let i = 0; i < numPings; i++) {
-        const randomIdx = Math.floor(Math.random() * THREAT_DATA.length);
-        newPings.push(THREAT_DATA[randomIdx].id);
+        const randomIdx = Math.floor(Math.random() * displayData.length);
+        newPings.push(displayData[randomIdx].id);
       }
       setActivePings(newPings);
     }, 2500);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [displayData]);
 
   const createCustomIcon = (intensity: string, isPinging: boolean) => {
     let colorClass = 'bg-blue-500';
@@ -96,7 +97,7 @@ export function GeographicMap() {
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         />
         
-        {THREAT_DATA.map((threat) => (
+        {displayData.map((threat) => (
           <Marker
             key={threat.id}
             position={[threat.lat, threat.lng]}
@@ -109,10 +110,16 @@ export function GeographicMap() {
                   <span className="text-slate-500">Status</span>
                   <span className={`${threat.intensity === 'high' ? 'text-red-400' : threat.intensity === 'medium' ? 'text-yellow-400' : 'text-blue-400'} uppercase font-bold`}>{threat.intensity}</span>
                 </div>
-                <div className="flex justify-between items-center text-[10px]">
-                  <span className="text-slate-500">Incidents</span>
+                <div className="flex justify-between items-center text-[10px] mb-1">
+                  <span className="text-slate-500">Scans</span>
                   <span className="font-mono text-white">{threat.count.toLocaleString()}</span>
                 </div>
+                {threat.threats !== undefined && (
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="text-slate-500">Threats</span>
+                    <span className="font-mono text-red-400">{threat.threats.toLocaleString()}</span>
+                  </div>
+                )}
               </div>
             </Popup>
           </Marker>

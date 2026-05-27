@@ -21,6 +21,7 @@ class CommunityPost(Base):
     content = Column(Text, nullable=False)
     scam_type = Column(String(50), nullable=True)   # "phishing" | "sms" | "social" | "other"
     evidence_url = Column(Text, nullable=True)
+    image_url = Column(Text, nullable=True)
     status = Column(String(20), default="published")  # "published" | "under_review" | "removed"
     upvotes = Column(Integer, default=0)
     downvotes = Column(Integer, default=0)

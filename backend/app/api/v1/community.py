@@ -22,6 +22,7 @@ class CreatePostRequest(BaseModel):
     content: str
     scam_type: str | None = None
     evidence_url: str | None = None
+    image_url: str | None = None
 
 
 class CommentRequest(BaseModel):
@@ -38,6 +39,7 @@ class PostResponse(BaseModel):
     content: str
     scam_type: str | None
     evidence_url: str | None
+    image_url: str | None = None
     status: str
     upvotes: int
     downvotes: int
@@ -97,6 +99,7 @@ def list_posts(
             content=post.content,
             scam_type=post.scam_type,
             evidence_url=post.evidence_url,
+            image_url=post.image_url,
             status=post.status,
             upvotes=post.upvotes,
             downvotes=post.downvotes,
@@ -122,6 +125,7 @@ def create_post(
         content=data.content,
         scam_type=data.scam_type,
         evidence_url=data.evidence_url,
+        image_url=data.image_url,
     )
     db.add(post)
     db.commit()
@@ -133,6 +137,7 @@ def create_post(
         content=post.content,
         scam_type=post.scam_type,
         evidence_url=post.evidence_url,
+        image_url=post.image_url,
         status=post.status,
         upvotes=post.upvotes,
         downvotes=post.downvotes,
@@ -157,6 +162,7 @@ def get_post(post_id: int, db: Session = Depends(get_db)):
         content=post.content,
         scam_type=post.scam_type,
         evidence_url=post.evidence_url,
+        image_url=post.image_url,
         status=post.status,
         upvotes=post.upvotes,
         downvotes=post.downvotes,

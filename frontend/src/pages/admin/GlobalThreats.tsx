@@ -4,6 +4,7 @@ import { Button } from '../../components/Button';
 import { ShieldAlert, Activity, Lock, Link, Search, UserPlus, Fingerprint, Eye, TrendingUp, CheckCircle, XCircle, Globe } from 'lucide-react';
 import { GeographicMap } from '../../components/GeographicMap';
 import { api } from '../../services/api';
+import { ScanDetailsModal } from '../../components/ScanDetailsModal';
 
 // Toast Component
 const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 'error' | 'warning' | 'info', onClose: () => void }) => {
@@ -34,6 +35,7 @@ export function GlobalThreats() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'warning' | 'info'} | null>(null);
+  const [selectedScan, setSelectedScan] = useState<any | null>(null);
 
   // Scanner State
   const [inputValue, setInputValue] = useState('');
@@ -152,7 +154,7 @@ export function GlobalThreats() {
               Tracking network end points in real-time. Red nodes indicate intrusion attempts blocked in the last 60 minutes.
             </p>
           </div>
-          <GeographicMap />
+          <GeographicMap data={dashboardStats?.map_stats} />
         </div>
         
         {/* Scanner Part */}
@@ -343,7 +345,11 @@ export function GlobalThreats() {
                 <div className="text-slate-500 text-center py-10">Syncing logs...</div>
               ) : scans.length > 0 ? (
                 scans.map((scan: any) => (
-                  <div key={scan.id} className="flex gap-3 hover:bg-dark-900 p-1 -mx-1 rounded transition-colors group">
+                  <div 
+                    key={scan.id} 
+                    className="flex gap-3 hover:bg-dark-900 p-1 -mx-1 rounded transition-colors group cursor-pointer"
+                    onClick={() => setSelectedScan(scan)}
+                  >
                     <span className="text-slate-600 whitespace-nowrap shrink-0">
                       [{new Date(scan.created_at).toLocaleTimeString([], {hour12: false})}]
                     </span>
@@ -366,7 +372,9 @@ export function GlobalThreats() {
           </div>
         </Card>
       </div>
-
+      {selectedScan && (
+        <ScanDetailsModal scan={selectedScan} onClose={() => setSelectedScan(null)} />
+      )}
     </div>
   );
 }
