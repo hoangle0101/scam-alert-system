@@ -51,13 +51,28 @@ export function GlobalThreats() {
       ]);
       setMetrics(metricsData);
       setScans(scansData.scans || []);
-      setUsers((usersData.users || []).slice(0, 5));
+      setUsers(usersData.users || []);
       setDashboardStats(dashData);
     } catch (err) {
       console.error(err);
       setToast({ message: 'Failed to sync Global Threat data', type: 'error' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleUserStatus = async (userId: number, currentStatus: boolean) => {
+    try {
+      const updatedUser = await api.admin.updateUserStatus(userId, !currentStatus);
+      // Update local state dynamically
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_active: updatedUser.is_active } : u));
+      setToast({ 
+        message: `User node ${updatedUser.is_active ? 'activated' : 'blocked'} successfully`, 
+        type: updatedUser.is_active ? 'success' : 'warning' 
+      });
+    } catch (err: any) {
+      console.error(err);
+      setToast({ message: err.message || 'Failed to update user status', type: 'error' });
     }
   };
 
@@ -236,14 +251,14 @@ export function GlobalThreats() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {loading ? (
-             [...Array(5)].map((_, i) => (
+             [...Array(4)].map((_, i) => (
                <Card key={i} className="bg-dark-800 border-dark-600 p-4 h-48 animate-pulse"></Card>
              ))
           ) : users.map((user) => (
-            <Card key={user.id} className="bg-dark-800 border-dark-600 p-4 hover:border-brand-500/30 transition-colors relative overflow-hidden group">
-              <div className="absolute top-0 left-0 w-1 h-full bg-brand-500/50"></div>
+            <Card key={user.id} className="bg-dark-800 border-dark-600 p-5 hover:border-brand-500/30 transition-all hover:shadow-lg hover:shadow-brand-500/5 relative overflow-hidden group">
+              <div className={`absolute top-0 left-0 w-1.5 h-full ${user.is_active ? 'bg-brand-500/50' : 'bg-red-500/50'}`}></div>
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 rounded-lg bg-dark-900 flex items-center justify-center text-slate-300 border border-dark-700 font-bold group-hover:border-brand-500/50 transition-colors">
                   {user.full_name.substring(0, 2).toUpperCase()}
@@ -254,8 +269,24 @@ export function GlobalThreats() {
                 </div>
               </div>
               <div className="space-y-3 text-xs mb-6 font-mono text-slate-400">
-                <div className="flex justify-between"><span>Status</span><span className={user.is_active ? "text-brand-500" : "text-slate-500"}>{user.is_active ? 'ONLINE' : 'OFFLINE'}</span></div>
-                <div className="flex justify-between"><span>Total Scans</span><span className="text-white">{user.total_scans}</span></div>
+                <div className="flex justify-between items-center gap-4">
+                  <span>Email</span>
+                  <span className="text-white truncate max-w-[150px]" title={user.email}>{user.email}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Phone</span>
+                  <span className="text-white">{user.phone || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Status</span>
+                  <span className={user.is_active ? "text-brand-500 font-bold" : "text-red-500 font-bold"}>
+                    {user.is_active ? 'ACTIVE (ONLINE)' : 'BLOCKED (OFFLINE)'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Total Scans</span>
+                  <span className="text-white font-bold">{user.total_scans}</span>
+                </div>
               </div>
               <div className="bg-dark-900/50 border border-dark-700 p-3 rounded-lg">
                 <p className="text-[9px] text-slate-500 font-mono mb-1 uppercase">MEMBER SINCE</p>
@@ -263,6 +294,24 @@ export function GlobalThreats() {
                   {new Date(user.created_at).toLocaleDateString()}
                 </p>
               </div>
+
+              {user.role !== 'admin' ? (
+                <Button 
+                  onClick={() => handleToggleUserStatus(user.id, user.is_active)}
+                  variant={user.is_active ? "outline" : "primary"}
+                  className={`w-full py-2.5 rounded-xl text-[10px] font-bold font-mono transition-all duration-300 mt-4 flex items-center justify-center gap-1.5 ${
+                    user.is_active 
+                      ? "border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500 hover:text-red-200" 
+                      : "bg-brand-600 hover:bg-brand-500 text-white"
+                  }`}
+                >
+                  {user.is_active ? "BLOCK NODE" : "UNBLOCK NODE"}
+                </Button>
+              ) : (
+                <div className="w-full text-center py-2.5 rounded-xl text-[10px] font-bold font-mono bg-dark-900 border border-dark-700 text-slate-500 uppercase mt-4">
+                  SYSTEM ADMIN
+                </div>
+              )}
             </Card>
           ))}
           {users.length < 5 && (

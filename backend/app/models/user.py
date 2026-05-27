@@ -23,6 +23,8 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     phone = Column(String(20), nullable=True)
     avatar_url = Column(Text, nullable=True)
+    notify_push = Column(Boolean, default=True)
+    notify_email = Column(Boolean, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
         DateTime,

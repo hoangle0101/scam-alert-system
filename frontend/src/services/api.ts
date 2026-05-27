@@ -53,6 +53,8 @@ export const api = {
     getDashboard: () => apiRequest('/admin/dashboard'),
     getScans: (page = 1) => apiRequest(`/admin/scans?page=${page}`),
     getUsers: () => apiRequest('/admin/users'),
+    updateUserStatus: (userId: number, isActive: boolean) => 
+      apiRequest(`/admin/users/${userId}`, { method: 'PATCH', body: JSON.stringify({ is_active: isActive }) }),
     getReports: () => apiRequest('/admin/reports'),
     getModelMetrics: () => apiRequest('/admin/model-metrics'),
     getAuditLogs: (page = 1, action?: string) => apiRequest(`/admin/audit-logs?page=${page}${action ? `&action=${action}` : ''}`),
@@ -85,6 +87,7 @@ export const api = {
   users: {
     getMe: () => apiRequest('/users/me'),
     updateProfile: (data: any) => apiRequest('/users/me', { method: 'PATCH', body: JSON.stringify(data) }),
+    changePassword: (data: any) => apiRequest('/users/change-password', { method: 'POST', body: JSON.stringify(data) }),
     getFamilyMembers: () => apiRequest('/users/family'),
     addFamilyMember: (email: string) => apiRequest('/users/family', { method: 'POST', body: JSON.stringify({ email }) }),
     removeFamilyMember: (linkId: number) => apiRequest(`/users/family/${linkId}`, { method: 'DELETE' }),
