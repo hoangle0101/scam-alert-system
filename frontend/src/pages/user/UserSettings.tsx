@@ -3,6 +3,7 @@ import { Card, CardContent } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { User, Bell, Shield, Users, Lock, ChevronRight, Edit2, ShieldCheck, Mail, Phone, CheckCircle, XCircle, AlertTriangle, Activity, UserPlus, Trash2, X } from 'lucide-react';
 import { api } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Toast Component
 const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 'error' | 'warning' | 'info', onClose: () => void }) => {
@@ -27,6 +28,7 @@ const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 
 };
 
 export function UserSettings() {
+  const { token, login } = useAuth();
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'notifications' | 'family'>('profile');
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'warning' | 'info'} | null>(null);
   
@@ -42,11 +44,19 @@ export function UserSettings() {
   const [newFamilyEmail, setNewFamilyEmail] = useState('');
   const [isAddingMember, setIsAddingMember] = useState(false);
 
-  // Notification State (Mocked)
+  // Notification State
   const [notifications, setNotifications] = useState({
     push: true,
     email: true
   });
+
+  // Password Change State
+  const [passwordForm, setPasswordForm] = useState({
+    current_password: '',
+    new_password: '',
+    confirm_password: ''
+  });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -57,6 +67,10 @@ export function UserSettings() {
       setUserProfile(profileRes);
       setEditProfileForm({ full_name: profileRes.full_name || '', phone: profileRes.phone || '' });
       setFamilyMembers(familyRes || []);
+      setNotifications({
+        push: profileRes.notify_push !== false,
+        email: profileRes.notify_email !== false
+      });
     } catch (err: any) {
       console.error(err);
       setToast({ message: 'Failed to load user data', type: 'error' });
@@ -76,6 +90,14 @@ export function UserSettings() {
     try {
       const updated = await api.users.updateProfile(editProfileForm);
       setUserProfile(updated);
+      if (token) {
+        login(token, {
+          id: updated.id,
+          email: updated.email,
+          full_name: updated.full_name,
+          role: updated.role
+        });
+      }
       setIsEditingProfile(false);
       setToast({ message: 'Profile updated successfully', type: 'success' });
     } catch (err: any) {
@@ -112,6 +134,51 @@ export function UserSettings() {
       setToast({ message: 'Family member removed', type: 'info' });
     } catch (err: any) {
       setToast({ message: err.message || 'Failed to remove member', type: 'error' });
+    }
+  };
+
+  const handleToggleNotification = async (channel: 'push' | 'email') => {
+    const newValue = !notifications[channel];
+    // Optimistic update
+    setNotifications(prev => ({ ...prev, [channel]: newValue }));
+    try {
+      await api.users.updateProfile({
+        [channel === 'push' ? 'notify_push' : 'notify_email']: newValue
+      });
+      setToast({ message: `${channel === 'push' ? 'Push Notifications' : 'Email Alerts'} updated!`, type: 'success' });
+    } catch (err: any) {
+      // Rollback
+      setNotifications(prev => ({ ...prev, [channel]: !newValue }));
+      setToast({ message: err.message || 'Failed to update preferences', type: 'error' });
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!passwordForm.current_password || !passwordForm.new_password || !passwordForm.confirm_password) {
+      setToast({ message: 'All fields are required', type: 'warning' });
+      return;
+    }
+    if (passwordForm.new_password.length < 6) {
+      setToast({ message: 'New password must be at least 6 characters long', type: 'warning' });
+      return;
+    }
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      setToast({ message: 'Passwords do not match', type: 'warning' });
+      return;
+    }
+    
+    setIsChangingPassword(true);
+    try {
+      await api.users.changePassword({
+        current_password: passwordForm.current_password,
+        new_password: passwordForm.new_password
+      });
+      setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
+      setToast({ message: 'Password changed successfully!', type: 'success' });
+    } catch (err: any) {
+      setToast({ message: err.message || 'Failed to change password', type: 'error' });
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -384,16 +451,57 @@ export function UserSettings() {
              </Card>
            )}
 
-           {/* Security Tab (Placeholder) */}
+           {/* Security Tab */}
            {activeTab === 'security' && (
              <Card className="bg-dark-800 border-dark-600 animate-in fade-in slide-in-from-right-4 duration-300">
-                <CardContent className="p-8 text-center py-20">
-                   <Lock size={40} className="mx-auto text-brand-500 mb-4 opacity-50" />
-                   <h3 className="text-xl font-bold text-white mb-2">Password & Authentication</h3>
-                   <p className="text-sm text-slate-400 mb-6">Manage your password and Two-Factor Authentication (2FA).</p>
-                   <Button variant="outline" className="border-brand-500/30 text-brand-400" onClick={() => setToast({message: 'Password management is currently disabled in demo mode.', type: 'info'})}>
-                     Change Password
-                   </Button>
+                <CardContent className="p-8">
+                   <div className="flex justify-between items-start mb-8 border-b border-dark-700 pb-6">
+                      <div>
+                         <h3 className="text-xl font-bold text-white flex items-center gap-3 mb-1">
+                            <Lock size={20} className="text-brand-500" /> Password & Authentication
+                         </h3>
+                         <p className="text-xs text-slate-400">Update your password to secure your account.</p>
+                      </div>
+                   </div>
+                   <div className="max-w-md space-y-6">
+                      <div className="space-y-2">
+                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Current Password</label>
+                         <input 
+                           type="password"
+                           value={passwordForm.current_password}
+                           onChange={e => setPasswordForm({...passwordForm, current_password: e.target.value})}
+                           className="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                           placeholder="••••••••"
+                         />
+                      </div>
+                      <div className="space-y-2">
+                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">New Password</label>
+                         <input 
+                           type="password"
+                           value={passwordForm.new_password}
+                           onChange={e => setPasswordForm({...passwordForm, new_password: e.target.value})}
+                           className="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                           placeholder="••••••••"
+                         />
+                      </div>
+                      <div className="space-y-2">
+                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Confirm New Password</label>
+                         <input 
+                           type="password"
+                           value={passwordForm.confirm_password}
+                           onChange={e => setPasswordForm({...passwordForm, confirm_password: e.target.value})}
+                           className="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                           placeholder="••••••••"
+                         />
+                      </div>
+                      <Button 
+                        onClick={handleChangePassword} 
+                        disabled={isChangingPassword} 
+                        className="bg-brand-600 hover:bg-brand-500 text-white font-bold px-6 py-3 rounded-xl transition-all duration-300 flex items-center gap-2 hover:scale-[1.02]"
+                      >
+                         {isChangingPassword ? 'Updating Password...' : 'Update Password'}
+                      </Button>
+                   </div>
                 </CardContent>
              </Card>
            )}

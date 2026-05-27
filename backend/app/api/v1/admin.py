@@ -44,6 +44,7 @@ class UserAdminResponse(BaseModel):
     full_name: str
     role: str
     is_active: bool
+    phone: str | None = None
     created_at: datetime | None
     total_scans: int = 0
 
@@ -265,6 +266,7 @@ def list_users(
             full_name=user.full_name,
             role=user.role,
             is_active=user.is_active,
+            phone=user.phone,
             created_at=user.created_at,
             total_scans=scan_count,
         ))

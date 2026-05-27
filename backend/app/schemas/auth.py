@@ -34,5 +34,7 @@ class UserResponse(BaseModel):
     is_active: bool
     phone: str | None = None
     avatar_url: str | None = None
+    notify_push: bool = True
+    notify_email: bool = True
 
     model_config = {"from_attributes": True}

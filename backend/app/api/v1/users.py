@@ -19,6 +19,13 @@ class UpdateProfileRequest(BaseModel):
     full_name: str | None = None
     phone: str | None = None
     avatar_url: str | None = None
+    notify_push: bool | None = None
+    notify_email: bool | None = None
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
 
 
 class FamilyMemberRequest(BaseModel):
@@ -57,10 +64,30 @@ def update_profile(
         current_user.phone = data.phone
     if data.avatar_url is not None:
         current_user.avatar_url = data.avatar_url
+    if data.notify_push is not None:
+        current_user.notify_push = data.notify_push
+    if data.notify_email is not None:
+        current_user.notify_email = data.notify_email
 
     db.commit()
     db.refresh(current_user)
     return current_user
+
+
+@router.post("/change-password")
+def change_password(
+    data: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Change current user's password."""
+    from app.core.security import verify_password, hash_password
+    if not verify_password(data.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không chính xác")
+    
+    current_user.hashed_password = hash_password(data.new_password)
+    db.commit()
+    return {"message": "Mật khẩu đã được thay đổi thành công"}
 
 
 # ── Family Shield ─────────────────────────────────────────
