@@ -387,10 +387,27 @@ export function UserDashboard() {
                 <div className="absolute bottom-4 left-4 right-4 bg-dark-900/90 backdrop-blur p-4 rounded-xl border border-dark-600 z-[500] shadow-lg">
                    <div className="flex justify-between items-center mb-2">
                       <span className="text-xs text-slate-400">Current Threat Level</span>
-                      <span className="text-xs font-bold text-red-400 animate-pulse">HIGH RISK</span>
+                      <span className={`text-xs font-bold animate-pulse ${
+                        stats?.threat_level === 'CRITICAL' ? 'text-red-400' :
+                        stats?.threat_level === 'ELEVATED' ? 'text-yellow-400' :
+                        'text-green-400'
+                      }`}>
+                         {stats?.threat_level === 'CRITICAL' ? 'CRITICAL RISK' :
+                          stats?.threat_level === 'ELEVATED' ? 'ELEVATED RISK' :
+                          'NORMAL'}
+                      </span>
                    </div>
                    <div className="w-full h-1.5 bg-dark-700 rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-yellow-500 to-red-500 w-[75%] relative">
+                      <div 
+                         className="h-full transition-all duration-500 relative"
+                         style={{
+                           width: stats?.threat_level === 'CRITICAL' ? '90%' :
+                                  stats?.threat_level === 'ELEVATED' ? '55%' : '20%',
+                           backgroundImage: stats?.threat_level === 'CRITICAL' ? 'linear-gradient(to right, #eab308, #ef4444)' :
+                                            stats?.threat_level === 'ELEVATED' ? 'linear-gradient(to right, #22c55e, #eab308)' :
+                                            'linear-gradient(to right, #3b82f6, #22c55e)'
+                         }}
+                      >
                         <div className="absolute top-0 right-0 bottom-0 left-0 bg-white/20 animate-pulse"></div>
                       </div>
                    </div>

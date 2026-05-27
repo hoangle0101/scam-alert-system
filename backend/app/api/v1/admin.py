@@ -102,12 +102,16 @@ def admin_dashboard(
     admin: User = Depends(get_current_admin),
 ):
     """Get comprehensive admin dashboard statistics."""
-    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    # Today in Vietnam timezone (UTC+7) translated to UTC range for DB queries
+    now_utc = datetime.now(timezone.utc)
+    now_vn = now_utc + timedelta(hours=7)
+    today_vn_start = now_vn.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_utc_start = today_vn_start - timedelta(hours=7)
 
     total_users = db.query(User).count()
     active_users = db.query(User).filter(User.is_active == True).count()
     total_scans = db.query(ScanResult).count()
-    scans_today = db.query(ScanResult).filter(ScanResult.created_at >= today).count()
+    scans_today = db.query(ScanResult).filter(ScanResult.created_at >= today_utc_start).count()
 
     threats_detected = db.query(ScanResult).filter(
         ScanResult.verdict.in_(["phishing", "suspicious"])
@@ -136,14 +140,16 @@ def admin_dashboard(
         .all()
     )
 
-    # 1. Traffic Stats (last 7 hours)
-    now = datetime.now(timezone.utc)
+    # 1. Traffic Stats (last 7 hours) - Vietnam timezone (UTC+7)
     traffic_stats = []
     for i in range(6, -1, -1):
-        start_hour = now - timedelta(hours=i)
-        hour_str = start_hour.strftime("%H:00")
+        # Calculate label in VN time (matching user laptop timezone)
+        start_hour_vn = now_vn - timedelta(hours=i)
+        hour_str = start_hour_vn.strftime("%H:00")
         
-        h_start = start_hour.replace(minute=0, second=0, microsecond=0)
+        # Calculate query window in UTC
+        start_hour_utc = now_utc - timedelta(hours=i)
+        h_start = start_hour_utc.replace(minute=0, second=0, microsecond=0)
         h_end = h_start + timedelta(hours=1)
         
         requests = db.query(ScanResult).filter(
